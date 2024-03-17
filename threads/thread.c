@@ -314,6 +314,11 @@ thread_yield (void) {
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
+	
+	// reorder the ready list for the new priority
+	if (!list_empty(&ready_list)) {
+		list_sort(&ready_list, (list_less_func *) &compare_priority, NULL);
+	}
 }
 
 /* Returns the current thread's priority. */
