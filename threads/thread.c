@@ -48,6 +48,9 @@ static long long idle_ticks;    /* # of timer ticks spent idle. */
 static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
 static long long user_ticks;    /* # of timer ticks in user programs. */
 
+/* Lab #1 - global_tick 정의*/
+static int64_t global_tick;
+
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
@@ -113,6 +116,11 @@ thread_init (void) {
 	list_init (&ready_list);
 	list_init (&sleep_list);
 	list_init (&destruction_req);
+
+	/* Lab #1 - 이곳에서 global을 init하고 있으니 global_tick도 여기서 init할 수 있을 것.
+	어차피 main에서 thread_init부터 선언하고 가니까*/
+
+	global_tick = INT64_MAX;
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
