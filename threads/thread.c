@@ -205,7 +205,13 @@ thread_create (const char *name, int priority,
 	t->tf.eflags = FLAG_IF;
 
 	/* Add to run queue. */
-	thread_unblock (t);
+	thread_unblock (t); // NOTE: unblock the new thread to add it to the ready list.
+
+	// NOTE: compare the priority of the current thread and the new thread. Yield the cpu if the new thread has higher priority.
+	int curr_priority = thread_get_priority();
+	if (priority > curr_priority) {
+		thread_yield();
+	}
 
 	return tid;
 }
