@@ -66,7 +66,9 @@ sema_down (struct semaphore *sema) {
 
 	old_level = intr_disable ();
 	while (sema->value == 0) {
-		list_push_back (&sema->waiters, &thread_current ()->elem);
+		// list_push_back (&sema->waiters, &thread_current ()->elem);
+		// NOTE: list_insert_ordered is used instead of list_push_back for priority scheduling.
+		list_insert_ordered(&sema->waiters, &thread_current ()->elem, (list_less_func *) &compare_priority, NULL);
 		thread_block ();
 	}
 	sema->value--;
@@ -235,7 +237,7 @@ lock_held_by_current_thread (const struct lock *lock) {
 
 	return lock->holder == thread_current ();
 }
-
+
 /* One semaphore in a list. */
 struct semaphore_elem {
 	struct list_elem elem;              /* List element. */
