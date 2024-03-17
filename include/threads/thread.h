@@ -104,6 +104,9 @@ struct thread {
 	struct supplemental_page_table spt;
 #endif
 
+	/* Lab #1 - local tick : wakeup 시간 체크에 사용*/
+	int64_t local_tick;
+
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
 	unsigned magic;                     /* Detects stack overflow. */
