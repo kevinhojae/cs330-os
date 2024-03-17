@@ -321,3 +321,15 @@ cond_broadcast (struct condition *cond, struct lock *lock) {
 	while (!list_empty (&cond->waiters))
 		cond_signal (cond, lock);
 }
+
+/* Compare the priority of two threads. */
+bool
+compare_priority(
+		struct list_elem *a,
+		struct list_elem *b,
+		void *aux UNUSED)
+{
+	struct thread *thread_a = list_entry(a, struct thread, elem);
+	struct thread *thread_b = list_entry(b, struct thread, elem);
+	return thread_a->priority > thread_b->priority;
+}
