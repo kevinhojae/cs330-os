@@ -88,6 +88,7 @@ timer_elapsed (int64_t then) {
 }
 
 /* Suspends execution for approximately TICKS timer ticks. */
+/* Lab #1 - 수정해야 할 부분. while 부를 제거하고 저기에 thread_sleep을 집어 넣어야 한다.*/ 
 void
 timer_sleep (int64_t ticks) {
 	int64_t start = timer_ticks ();
