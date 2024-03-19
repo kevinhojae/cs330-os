@@ -309,7 +309,7 @@ thread_sleep (int64_t ticks) {
 	}
 
 	/*이제 sleep_list의 가장 뒤에 넣어줘야 한다.*/
-	list_push_back (&sleep_list, *cur->elem);
+	list_push_back (&sleep_list, &cur->elem);
 
 	/*이제 block을 시켜야 한다.*/
 	thread_block ();
