@@ -68,7 +68,7 @@ sema_down (struct semaphore *sema) {
 	while (sema->value == 0) {
 		// list_push_back (&sema->waiters, &thread_current ()->elem);
 		// NOTE: list_insert_ordered is used instead of list_push_back for priority scheduling.
-		list_insert_ordered(&sema->waiters, &thread_current ()->elem, (list_less_func *) &compare_priority, NULL);
+		list_insert_ordered(&sema->waiters, &thread_current ()->elem, (list_less_func *) &compare_priority_desc, NULL);
 		thread_block ();
 	}
 	sema->value--;
@@ -326,7 +326,7 @@ cond_broadcast (struct condition *cond, struct lock *lock) {
 
 /* Compare the priority of two threads. */
 bool
-compare_priority(
+compare_priority_desc(
 		struct list_elem *a,
 		struct list_elem *b,
 		void *aux UNUSED)

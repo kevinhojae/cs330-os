@@ -247,7 +247,7 @@ thread_unblock (struct thread *t) {
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
 	// list_push_back (&ready_list, &t->elem);
-	list_insert_ordered(&ready_list, &t->elem, (list_less_func *) &compare_priority, NULL);
+	list_insert_ordered(&ready_list, &t->elem, (list_less_func *) &compare_priority_desc, NULL);
 	t->status = THREAD_READY;
 	intr_set_level (old_level);
 }
@@ -311,7 +311,7 @@ thread_yield (void) {
 	old_level = intr_disable ();
 	if (curr != idle_thread)
 		// list_push_back (&ready_list, &curr->elem);
-		list_insert_ordered(&ready_list, &curr->elem, (list_less_func *) &compare_priority, NULL);
+		list_insert_ordered(&ready_list, &curr->elem, (list_less_func *) &compare_priority_desc, NULL);
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
@@ -323,7 +323,7 @@ thread_set_priority (int new_priority) {
 	
 	// reorder the ready list for the new priority
 	if (!list_empty(&ready_list)) {
-		list_sort(&ready_list, (list_less_func *) &compare_priority, NULL);
+		list_sort(&ready_list, (list_less_func *) &compare_priority_desc, NULL);
 	}
 }
 
