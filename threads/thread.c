@@ -317,8 +317,7 @@ thread_sleep (int64_t ticks) {
 		global_tick = curr_thread->local_tick;
 	}
 
-	/*이제 sleep_list의 가장 뒤에 넣어줘야 한다.
-	TODO: 우선권 파트랑 merge하고 난 이후 sorted되도록 수정하기/*/
+	// sleep_list를 local_tick을 기준으로 오름차순하여 정렬
 	//list_push_back(&sleep_list, &curr_thread->elem);
 	list_insert_ordered(&sleep_list, &curr_thread->elem, (list_less_func *) &compare_local_tick_asc, NULL);
 
@@ -340,9 +339,8 @@ thread_wake(int64_t tick){
 	/*슬립 리스트의 요소들 하나씩 사용할 것임.*/
 	element_from_sleep_list = list_begin(&sleep_list);
 
-	/*리스트의 끝까지 원소 하나하나 체크하기
-	이후 priority 부분 구현 완료하고 merge하면 
-	TODO: list 정렬되도록 하고, 최초로 맞이한 wakeup 할 시간이 안된 쓰레드 때부터 break 써주기*/
+	/*리스트의 끝까지 원소 하나하나 체크.
+	다만, list 정렬된 상태이기에 wake up할 시간이 안 된 쓰레드를 처음 만난 이후부터는 확인할 필요 없음-> break*/
 	while (element_from_sleep_list != list_end(&sleep_list))
 	{
 		struct thread *cur = list_entry(element_from_sleep_list, struct thread, elem);
@@ -352,8 +350,8 @@ thread_wake(int64_t tick){
 			thread_unblock(cur);
 		}
 		else{
-			/*TODO: 이 부분 수정하기*/
-			element_from_sleep_list = list_next(element_from_sleep_list);
+			/* wakeup하지 않아도 되는 쓰레드 만날 경우 : global tick update 해주고, break */
+			//element_from_sleep_list = list_next(element_from_sleep_list);
 
 			if(cur->local_tick < global_tick){
 				global_tick = cur->local_tick;
