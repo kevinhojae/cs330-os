@@ -88,13 +88,19 @@ timer_elapsed (int64_t then) {
 }
 
 /* Suspends execution for approximately TICKS timer ticks. */
+/* Lab #1 - 수정해야 할 부분. while 부를 제거하고 저기에 thread_sleep을 집어 넣어야 한다.*/ 
 void
 timer_sleep (int64_t ticks) {
 	int64_t start = timer_ticks ();
 
 	ASSERT (intr_get_level () == INTR_ON);
-	while (timer_elapsed (start) < ticks)
-		thread_yield ();
+	/*while (timer_elapsed (start) < ticks)
+		thread_yield ();*/
+
+	/*Lab #1 - busy wait 방식 제거하고 새로운 방식 구현.*/
+	if(timer_elapsed(start) < ticks){
+		thread_sleep(ticks+start);
+	}
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -122,10 +128,16 @@ timer_print_stats (void) {
 }
 
 /* Timer interrupt handler. */
+/* Lab #1 - timer_interrupt가 매번 global_tick 확인해서 쓰레드 깨우도록*/
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
 	thread_tick ();
+
+	if(get_global_tick() <= ticks){
+		thread_wake(ticks);
+	}
+
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
