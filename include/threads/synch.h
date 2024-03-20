@@ -41,6 +41,8 @@ void cond_broadcast (struct condition *, struct lock *);
 /* Priority */
 bool compare_priority_desc(struct list_elem *a, struct list_elem *b, void *aux);
 
+bool compare_local_tick_asc(struct list_elem *a, struct list_elem *b,	void *aux);
+
 /* Optimization barrier.
  *
  * The compiler will not reorder operations across an

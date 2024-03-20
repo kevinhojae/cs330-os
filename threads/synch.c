@@ -336,3 +336,16 @@ compare_priority_desc(
 	struct thread *thread_b = list_entry(b, struct thread, elem);
 	return thread_a->priority > thread_b->priority;
 }
+
+
+/* Lab #1 - check the local_ticks and make it ascending order*/
+bool
+compare_local_tick_asc(
+		struct list_elem *a,
+		struct list_elem *b,
+		void *aux UNUSED)
+{
+	struct thread *thread_a = list_entry(a, struct thread, elem);
+	struct thread *thread_b = list_entry(b, struct thread, elem);
+	return thread_a->local_tick < thread_b->local_tick;
+}

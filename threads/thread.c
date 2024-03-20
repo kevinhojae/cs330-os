@@ -319,7 +319,8 @@ thread_sleep (int64_t ticks) {
 
 	/*이제 sleep_list의 가장 뒤에 넣어줘야 한다.
 	TODO: 우선권 파트랑 merge하고 난 이후 sorted되도록 수정하기/*/
-	list_push_back(&sleep_list, &curr_thread->elem);
+	//list_push_back(&sleep_list, &curr_thread->elem);
+	list_insert_ordered(&sleep_list, &curr_thread->elem, (list_less_func *) &compare_local_tick_asc, NULL);
 
 	/*이제 block을 시켜야 한다.*/
 	thread_block();
@@ -330,7 +331,7 @@ thread_sleep (int64_t ticks) {
 
 /* Lab #1 - 쓰레드를 sleep_list에서 ready_list로 보내는 작용*/
 void
-thread_wake(int64_t local_tick){
+thread_wake(int64_t tick){
 	/*global tick 변수 사용하고.*/
 	global_tick = INT64_MAX;
 
@@ -346,7 +347,7 @@ thread_wake(int64_t local_tick){
 	{
 		struct thread *cur = list_entry(element_from_sleep_list, struct thread, elem);
 
-		if(cur->local_tick <= local_tick){
+		if(cur->local_tick <= tick){
 			element_from_sleep_list = list_remove(&cur->elem);
 			thread_unblock(cur);
 		}
@@ -358,7 +359,7 @@ thread_wake(int64_t local_tick){
 				global_tick = cur->local_tick;
 			}
 
-			//break;
+			break;
 		}
 
 	}
