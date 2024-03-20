@@ -269,9 +269,13 @@ thread_unblock (struct thread *t) {
 /* Lab #1 - 쓰레드를 sleep_list로 보내는 작용
 해야할 task 목록
 1. timer_sleep에게 호출당함
-2. 인터럽트 막도록 해야함.
-3. 그 전에 idle인지 확인부터 해야 함.
-4. */
+2. idle인지 확인부터 해야 함
+3. 인터럽트 막도록 해야함
+4. 외부 인터럽트 체크
+5. local tick
+6. sleep_list에 넣어주기
+7. block
+8. 인터럽트 해제*/
 void
 thread_sleep (int64_t ticks) {
 	/* 현재 실행하고 있는 쓰레드에 대한 작업. 이를 thread *cur에 thread_current()로 받아왔다.*/
@@ -308,14 +312,15 @@ thread_sleep (int64_t ticks) {
 		global_tick = cur->local_tick;
 	}
 
-	/*이제 sleep_list의 가장 뒤에 넣어줘야 한다.*/
-	list_push_back (&sleep_list, &cur->elem);
+	/*이제 sleep_list의 가장 뒤에 넣어줘야 한다.
+	TODO: 우선권 파트랑 merge하고 난 이후 sorted되도록 수정하기/*/
+	list_push_back(&sleep_list, &cur->elem);
 
 	/*이제 block을 시켜야 한다.*/
-	thread_block ();
+	thread_block();
 
 	/*마지막으로 인터럽트를 다시 풀어줘야 한다.*/
-	intr_set_level (old_level);
+	intr_set_level(old_level);
 }
 
 /* Returns the name of the running thread. */
