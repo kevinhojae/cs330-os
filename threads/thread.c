@@ -443,11 +443,10 @@ thread_set_priority (int new_priority) {
 	// reorder the ready list for the new priority
 	if (!list_empty(&ready_list)) {
 		list_sort(&ready_list, (list_less_func *) &compare_priority_desc, NULL);
-	}
-
-	// yield the cpu if the new priority is lower than the highest priority in the ready list
-	if (new_priority < list_entry(list_front(&ready_list), struct thread, elem)->priority) {
-		thread_yield();
+			// yield the cpu if the new priority is lower than the highest priority in the ready list
+		if (new_priority < list_entry(list_front(&ready_list), struct thread, elem)->priority) {
+			thread_yield();
+		}
 	}
 }
 
