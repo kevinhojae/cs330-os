@@ -128,10 +128,16 @@ timer_print_stats (void) {
 }
 
 /* Timer interrupt handler. */
+/* Lab #1 - timer_interrupt가 매번 global_tick 확인해서 쓰레드 깨우도록*/
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
 	thread_tick ();
+
+	if(get_global_tick() <= ticks){
+		thread_wake(ticks);
+	}
+
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

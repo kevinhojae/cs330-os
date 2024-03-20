@@ -360,6 +360,13 @@ thread_wake(int64_t local_tick){
 	
 }
 
+
+/* Lab #1 - global tick 가져오기. -> timer.c file에서 이 변수 사용하려니 안 되는 것 같다.*/
+int64_t
+get_global_tick(void){
+	return global_tick;
+}
+
 /* Returns the name of the running thread. */
 const char *
 thread_name (void) {
