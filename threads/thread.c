@@ -28,6 +28,9 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+/* Lab #1 - sleep_list : running 되던 thread가 timer_sleep()을 만나면 이 list에 들어가게 됨.*/
+static struct list sleep_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -44,6 +47,9 @@ static struct list destruction_req;
 static long long idle_ticks;    /* # of timer ticks spent idle. */
 static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
 static long long user_ticks;    /* # of timer ticks in user programs. */
+
+/* Lab #1 - global_tick 정의*/
+static int64_t global_tick;
 
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
@@ -108,7 +114,13 @@ thread_init (void) {
 	/* Init the globla thread context */
 	lock_init (&tid_lock);
 	list_init (&ready_list);
+	list_init (&sleep_list);
 	list_init (&destruction_req);
+
+	/* Lab #1 - 이곳에서 global을 init하고 있으니 global_tick도 여기서 init할 수 있을 것.
+	어차피 main에서 thread_init부터 선언하고 가니까*/
+
+	global_tick = INT64_MAX;
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
@@ -225,8 +237,13 @@ thread_create (const char *name, int priority,
 void
 thread_block (void) {
 	ASSERT (!intr_context ());
+	
+	/* Lab #1 - 직접 구현한 곳 아님. 여기서도 intr이 off되어있는지 확인함. block 작업이 intr off된 상태에서 이루어져야 함.
+	들어가기 전에 off 시켜야 함.*/
+
 	ASSERT (intr_get_level () == INTR_OFF);
 	thread_current ()->status = THREAD_BLOCKED;
+
 	schedule ();
 }
 
@@ -250,6 +267,109 @@ thread_unblock (struct thread *t) {
 	list_insert_ordered(&ready_list, &t->elem, (list_less_func *) &compare_priority_desc, NULL);
 	t->status = THREAD_READY;
 	intr_set_level (old_level);
+}
+/* Lab #1 - 이거 수정하는 줄 알았는데 아니었다.
+새로 thread를 sleep_list로 넣어주는 함수를 만들고 그 함수에서 block과 unblock을 사용하는 듯 하다.*/
+
+/* Lab #1 - 쓰레드를 sleep_list로 보내는 작용
+해야할 task 목록
+1. timer_sleep에게 호출당함
+2. idle인지 확인부터 해야 함
+3. 인터럽트 막도록 해야함
+4. 외부 인터럽트 체크
+5. local tick
+6. sleep_list에 넣어주기
+7. block
+8. 인터럽트 해제*/
+void
+thread_sleep (int64_t ticks) {
+	/* 현재 실행하고 있는 쓰레드에 대한 작업. 이를 thread *cur에 thread_current()로 받아왔다.*/
+
+	struct thread *curr_thread = thread_current ();
+
+	/* 일단 idle인지 check 부터 해야 함.
+	if를 쓰려니 그냥 넘어가게 할 방법을 찾을 수 없었음.
+	더 쉬운 방법 발견. assert는 condition 상태이면 넘어가고 아니면 error 호출함.
+	추가 질문: 그러나 assert가 완전한 방법인지 의문이 있음. assert 함수를 살펴보니 os를 중지시킬 뿐이며 직접적인 해결책은 아닌 것 같은데?
+	일단 타 함수들에서 사용하는 방법이기에 채용. */
+
+	ASSERT(curr_thread != idle_thread);
+
+	/* idle 아니라고 확정되면 인터럽트 막아야 함.
+	타 함수들 참고하니 old_level 방식을 사용해서 인터럽트로 들어오는 방해를 막고 있음 */
+	
+	enum intr_level old_level;
+
+	/* condition 상태이면 그냥 넘어가고 아니면 error를 부르는 assert 이용.
+	외부 인터럽트를 처리하는 중이 아니면 계속 이어가도록 되어 있음.*/
+
+	ASSERT (!intr_context ());
+
+	/*point. old_level에 인터럽트 disable을 넣어서 이거 사용하게 한다.
+	정확히는 현재 상태를 disable로 설정시키면서 이전 상태(able)를 반환한다. 이전 상태가 old_level에 저장됨.*/
+	old_level = intr_disable ();
+
+	/* local_tick에 현재 ticks를 넣어주면서*/
+	curr_thread -> local_tick = ticks;
+
+	/* 이 local_tick이 global_tick보다 작은지 체크하고, global_tick을 가장 작은 값으로 재정의 시켜야 한다.*/
+	if(curr_thread->local_tick < global_tick){
+		global_tick = curr_thread->local_tick;
+	}
+
+	/*이제 sleep_list의 가장 뒤에 넣어줘야 한다.
+	TODO: 우선권 파트랑 merge하고 난 이후 sorted되도록 수정하기/*/
+	list_push_back(&sleep_list, &curr_thread->elem);
+
+	/*이제 block을 시켜야 한다.*/
+	thread_block();
+
+	/*마지막으로 인터럽트를 다시 풀어줘야 한다.*/
+	intr_set_level(old_level);
+}
+
+/* Lab #1 - 쓰레드를 sleep_list에서 ready_list로 보내는 작용*/
+void
+thread_wake(int64_t local_tick){
+	/*global tick 변수 사용하고.*/
+	global_tick = INT64_MAX;
+
+	/*list 변수 사용*/
+	struct list_elem *element_from_sleep_list;
+	/*슬립 리스트의 요소들 하나씩 사용할 것임.*/
+	element_from_sleep_list = list_begin(&sleep_list);
+
+	/*리스트의 끝까지 원소 하나하나 체크하기
+	이후 priority 부분 구현 완료하고 merge하면 
+	TODO: list 정렬되도록 하고, 최초로 맞이한 wakeup 할 시간이 안된 쓰레드 때부터 break 써주기*/
+	while (element_from_sleep_list != list_end(&sleep_list))
+	{
+		struct thread *cur = list_entry(element_from_sleep_list, struct thread, elem);
+
+		if(cur->local_tick <= local_tick){
+			element_from_sleep_list = list_remove(&cur->elem);
+			thread_unblock(cur);
+		}
+		else{
+			/*TODO: 이 부분 수정하기*/
+			element_from_sleep_list = list_next(element_from_sleep_list);
+
+			if(cur->local_tick < global_tick){
+				global_tick = cur->local_tick;
+			}
+
+			//break;
+		}
+
+	}
+	
+}
+
+
+/* Lab #1 - global tick 가져오기. -> timer.c file에서 이 변수 사용하려니 안 되는 것 같다.*/
+int64_t
+get_global_tick(void){
+	return global_tick;
 }
 
 /* Returns the name of the running thread. */
@@ -553,16 +673,23 @@ do_schedule(int status) {
 
 static void
 schedule (void) {
+	/* 현재 실행하는 쓰레드를 넣고. 다음에 실행할 쓰레드도 넣음 */
+
 	struct thread *curr = running_thread ();
 	struct thread *next = next_thread_to_run ();
+
+	/*일단 intr_off인지 상태를 확인함.
+	그리고 현재 상태가 쓰레드 실행중이 아니어야 함을 체크. schedule할 때는 보통 인터럽트로 cpu 점유할 쓰레드 바뀔때이니 아니어야 하는듯.
+	이후 다음 쓰레드가 옳은 것이 맞는지 체크? null이 아니어야 함. 또한 Thread_magic 확인. (Thread_magic?)
+	-> guide 내용: overflow 검출*/
 
 	ASSERT (intr_get_level () == INTR_OFF);
 	ASSERT (curr->status != THREAD_RUNNING);
 	ASSERT (is_thread (next));
-	/* Mark us as running. */
+	/* Mark us as running.  다음 쓰레드의 상태를 실행으로 변경.*/
 	next->status = THREAD_RUNNING;
 
-	/* Start new time slice. */
+	/* Start new time slice. 새로운 thread_ticks을 선언. 이를 통해 이번 쓰레드가 cpu 얼마나 점유했는지 확인 가능.*/
 	thread_ticks = 0;
 
 #ifdef USERPROG

@@ -104,6 +104,9 @@ struct thread {
 	struct supplemental_page_table spt;
 #endif
 
+	/* Lab #1 - local tick : wakeup 시간 체크에 사용*/
+	int64_t local_tick;
+
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
 	unsigned magic;                     /* Detects stack overflow. */
@@ -122,6 +125,12 @@ void thread_print_stats (void);
 
 typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
+
+/* Lab #1 - 함수 정의*/
+void thread_sleep (int64_t ticks);
+void thread_wake (int64_t local_tick);
+
+int64_t get_global_tick(void);
 
 void thread_block (void);
 void thread_unblock (struct thread *);
