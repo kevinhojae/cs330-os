@@ -323,6 +323,43 @@ thread_sleep (int64_t ticks) {
 	intr_set_level(old_level);
 }
 
+/* Lab #1 - 쓰레드를 sleep_list에서 ready_list로 보내는 작용*/
+void
+thread_wake(int64_t local_tick){
+	/*global tick 변수 사용하고.*/
+	global_tick = INT64_MAX;
+
+	/*list 변수 사용*/
+	struct list_elem *element_from_sleep_list;
+	/*슬립 리스트의 요소들 하나씩 사용할 것임.*/
+	element_from_sleep_list = list_begin(&sleep_list);
+
+	/*리스트의 끝까지 원소 하나하나 체크하기
+	이후 priority 부분 구현 완료하고 merge하면 
+	TODO: list 정렬되도록 하고, 최초로 맞이한 wakeup 할 시간이 안된 쓰레드 때부터 break 써주기*/
+	while (element_from_sleep_list != list_end(&sleep_list))
+	{
+		struct thread *cur = 	list_entry(element_from_sleep_list, struct thread, elem);
+
+		if(cur->local_tick <= local_tick){
+			element_from_sleep_list = list_remove(&cur->elem);
+			thread_unblock(cur);
+		}
+		else{
+			/*TODO: 이 부분 수정하기*/
+			element_from_sleep_list = list_next(element_from_sleep_list);
+
+			if(cur->local_tick < global_tick){
+				global_tick = cur->local_tick;
+			}
+
+			//break;
+		}
+
+	}
+	
+}
+
 /* Returns the name of the running thread. */
 const char *
 thread_name (void) {
