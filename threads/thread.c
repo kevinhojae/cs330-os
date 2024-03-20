@@ -98,7 +98,6 @@ static uint64_t gdt[3] = { 0, 0x00af9a000000ffff, 0x00cf92000000ffff };
 
    It is not safe to call thread_current() until this function
    finishes. */
-   /*Lab #1 - Not declaration from me, interrupt 막는 방식을 참고하면 될 것 같음. + guide의 동기화 부분 참고*/
 void
 thread_init (void) {
 	ASSERT (intr_get_level () == INTR_OFF);
@@ -239,7 +238,6 @@ thread_block (void) {
 	ASSERT (intr_get_level () == INTR_OFF);
 	thread_current ()->status = THREAD_BLOCKED;
 
-	/* Lab #1 - schedule은 뭐지?*/
 	schedule ();
 }
 
@@ -280,7 +278,7 @@ void
 thread_sleep (int64_t ticks) {
 	/* 현재 실행하고 있는 쓰레드에 대한 작업. 이를 thread *cur에 thread_current()로 받아왔다.*/
 
-	struct thread *cur = thread_current ();
+	struct thread *curr_thread = thread_current ();
 
 	/* 일단 idle인지 check 부터 해야 함.
 	if를 쓰려니 그냥 넘어가게 할 방법을 찾을 수 없었음.
@@ -288,7 +286,7 @@ thread_sleep (int64_t ticks) {
 	추가 질문: 그러나 assert가 완전한 방법인지 의문이 있음. assert 함수를 살펴보니 os를 중지시킬 뿐이며 직접적인 해결책은 아닌 것 같은데?
 	일단 타 함수들에서 사용하는 방법이기에 채용. */
 
-	ASSERT(cur != idle_thread);
+	ASSERT(curr_thread != idle_thread);
 
 	/* idle 아니라고 확정되면 인터럽트 막아야 함.
 	타 함수들 참고하니 old_level 방식을 사용해서 인터럽트로 들어오는 방해를 막고 있음 */
@@ -305,16 +303,16 @@ thread_sleep (int64_t ticks) {
 	old_level = intr_disable ();
 
 	/* local_tick에 현재 ticks를 넣어주면서*/
-	cur -> local_tick = ticks;
+	curr_thread -> local_tick = ticks;
 
 	/* 이 local_tick이 global_tick보다 작은지 체크하고, global_tick을 가장 작은 값으로 재정의 시켜야 한다.*/
-	if(cur->local_tick < global_tick){
-		global_tick = cur->local_tick;
+	if(curr_thread->local_tick < global_tick){
+		global_tick = curr_thread->local_tick;
 	}
 
 	/*이제 sleep_list의 가장 뒤에 넣어줘야 한다.
 	TODO: 우선권 파트랑 merge하고 난 이후 sorted되도록 수정하기/*/
-	list_push_back(&sleep_list, &cur->elem);
+	list_push_back(&sleep_list, &curr_thread->elem);
 
 	/*이제 block을 시켜야 한다.*/
 	thread_block();
@@ -339,7 +337,7 @@ thread_wake(int64_t local_tick){
 	TODO: list 정렬되도록 하고, 최초로 맞이한 wakeup 할 시간이 안된 쓰레드 때부터 break 써주기*/
 	while (element_from_sleep_list != list_end(&sleep_list))
 	{
-		struct thread *cur = 	list_entry(element_from_sleep_list, struct thread, elem);
+		struct thread *cur = list_entry(element_from_sleep_list, struct thread, elem);
 
 		if(cur->local_tick <= local_tick){
 			element_from_sleep_list = list_remove(&cur->elem);
@@ -486,7 +484,6 @@ idle (void *idle_started_ UNUSED) {
 	sema_up (idle_started);
 
 	for (;;) {
-		/*Lab #1 - 중요 포인트. 참고할 필요가 있다.*/
 		/* Let someone else run. */
 		intr_disable ();
 		thread_block ();
