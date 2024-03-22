@@ -358,14 +358,19 @@ compare_local_tick_asc(
 
 /* compare the priority of two semaphores. */
 bool 
-compare_sema_priority_desc (struct list_elem *l, struct list_elem *s, void *aux UNUSED)
+compare_sema_priority_desc (struct list_elem *a, struct list_elem *b, void *aux UNUSED)
 {
-	struct semaphore_elem *l_sema = list_entry (l, struct semaphore_elem, elem);
-	struct semaphore_elem *s_sema = list_entry (s, struct semaphore_elem, elem);
+	// get the semaphore from the list element memory address
+	struct semaphore_elem *a_sema = list_entry (a, struct semaphore_elem, elem);
+	struct semaphore_elem *b_sema = list_entry (b, struct semaphore_elem, elem);
 
-	struct list *waiter_l_sema = &(l_sema->semaphore.waiters);
-	struct list *waiter_s_sema = &(s_sema->semaphore.waiters);
+	// waiters of sema contains the list of threads waiting for the semaphore
+	// waiters are sorted in descending order of priority by sema_up, first element has the highest priority
+	// get waiters of sema a and b
+	struct list *waiter_a_sema = &(a_sema->semaphore.waiters);
+	struct list *waiter_b_sema = &(b_sema->semaphore.waiters);
 
-	return list_entry (list_begin (waiter_l_sema), struct thread, elem)->priority
-		 > list_entry (list_begin (waiter_s_sema), struct thread, elem)->priority;
+	// compare the priority of the first thread in the waiters list of sema a and b, which has the highest priority
+	return list_entry (list_begin (waiter_a_sema), struct thread, elem)->priority
+		 > list_entry (list_begin (waiter_b_sema), struct thread, elem)->priority;
 }
