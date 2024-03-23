@@ -218,12 +218,7 @@ thread_create (const char *name, int priority,
 
 	/* Add to run queue. */
 	thread_unblock (t); // NOTE: unblock the new thread to add it to the ready list.
-
-	// NOTE: compare the priority of the current thread and the new thread. Yield the cpu if the new thread has higher priority.
-	int curr_priority = thread_get_priority();
-	if (priority > curr_priority) {
-		thread_yield();
-	}
+	thread_try_preempt();
 
 	return tid;
 }
@@ -264,7 +259,7 @@ thread_unblock (struct thread *t) {
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
 	// list_push_back (&ready_list, &t->elem);
-	list_insert_ordered(&ready_list, &t->elem, (list_less_func *) &compare_priority_desc, NULL);
+	list_insert_ordered(&ready_list, &t->elem, (list_less_func *) &compare_thread_priority_desc, NULL);
 	t->status = THREAD_READY;
 	intr_set_level (old_level);
 }
@@ -365,6 +360,19 @@ thread_wake(int64_t tick){
 }
 
 
+/* preempt the current thread if the ready list is not empty and the highest priority thread has higher priority than the current thread */
+void 
+thread_try_preempt (void)
+{	
+	if (!list_empty (&ready_list)) {
+		// NOTE: Must use list_begin, not list_front, because list_front is not safe when the list is empty.
+		struct thread* highest_ready_thread = list_entry (list_begin (&ready_list), struct thread, elem);
+    if (thread_current ()->priority < highest_ready_thread->priority)
+      thread_yield ();
+	}
+}
+
+
 /* Lab #1 - global tick 가져오기. -> timer.c file에서 이 변수 사용하려니 안 되는 것 같다.*/
 int64_t
 get_global_tick(void){
@@ -430,7 +438,7 @@ thread_yield (void) {
 	old_level = intr_disable ();
 	if (curr != idle_thread)
 		// list_push_back (&ready_list, &curr->elem);
-		list_insert_ordered(&ready_list, &curr->elem, (list_less_func *) &compare_priority_desc, NULL);
+		list_insert_ordered(&ready_list, &curr->elem, (list_less_func *) &compare_thread_priority_desc, NULL);
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
@@ -442,7 +450,8 @@ thread_set_priority (int new_priority) {
 	
 	// reorder the ready list for the new priority
 	if (!list_empty(&ready_list)) {
-		list_sort(&ready_list, (list_less_func *) &compare_priority_desc, NULL);
+		list_sort(&ready_list, (list_less_func *) &compare_thread_priority_desc, NULL);
+		thread_try_preempt();
 	}
 }
 

@@ -68,7 +68,7 @@ sema_down (struct semaphore *sema) {
 	while (sema->value == 0) {
 		// list_push_back (&sema->waiters, &thread_current ()->elem);
 		// NOTE: list_insert_ordered is used instead of list_push_back for priority scheduling.
-		list_insert_ordered(&sema->waiters, &thread_current ()->elem, (list_less_func *) &compare_priority_desc, NULL);
+		list_insert_ordered(&sema->waiters, &thread_current ()->elem, (list_less_func *) &compare_thread_priority_desc, NULL);
 		thread_block ();
 	}
 	sema->value--;
@@ -111,10 +111,15 @@ sema_up (struct semaphore *sema) {
 	ASSERT (sema != NULL);
 
 	old_level = intr_disable ();
-	if (!list_empty (&sema->waiters))
+
+	if (!list_empty (&sema->waiters)) {
+		// sort the sema waiters list in descending order of thread priority
+		list_sort(&sema->waiters, (list_less_func *) &compare_thread_priority_desc, NULL);
 		thread_unblock (list_entry (list_pop_front (&sema->waiters),
-					struct thread, elem));
+                    struct thread, elem));
+	}
 	sema->value++;
+	thread_try_preempt();
 	intr_set_level (old_level);
 }
 
@@ -285,7 +290,7 @@ cond_wait (struct condition *cond, struct lock *lock) {
 
 	sema_init (&waiter.semaphore, 0);
 	// list_push_back (&cond->waiters, &waiter.elem);
-	list_insert_ordered(&cond->waiters, &waiter.elem, (list_less_func *) &compare_priority_desc, NULL);
+	list_insert_ordered(&cond->waiters, &waiter.elem, (list_less_func *) &compare_sema_priority_desc, NULL);
 	lock_release (lock);
 	sema_down (&waiter.semaphore);
 	lock_acquire (lock);
@@ -306,6 +311,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED) {
 	ASSERT (lock_held_by_current_thread (lock));
 
 	if (!list_empty (&cond->waiters))
+		list_sort(&cond->waiters, (list_less_func *) &compare_sema_priority_desc, NULL);
 		sema_up (&list_entry (list_pop_front (&cond->waiters),
 					struct semaphore_elem, elem)->semaphore);
 }
@@ -327,7 +333,7 @@ cond_broadcast (struct condition *cond, struct lock *lock) {
 
 /* Compare the priority of two threads. */
 bool
-compare_priority_desc(
+compare_thread_priority_desc(
 		struct list_elem *a,
 		struct list_elem *b,
 		void *aux UNUSED)
@@ -348,4 +354,23 @@ compare_local_tick_asc(
 	struct thread *thread_a = list_entry(a, struct thread, elem);
 	struct thread *thread_b = list_entry(b, struct thread, elem);
 	return thread_a->local_tick < thread_b->local_tick;
+}
+
+/* compare the priority of two semaphores. */
+bool 
+compare_sema_priority_desc (struct list_elem *a, struct list_elem *b, void *aux UNUSED)
+{
+	// get the semaphore from the list element memory address
+	struct semaphore_elem *a_sema = list_entry (a, struct semaphore_elem, elem);
+	struct semaphore_elem *b_sema = list_entry (b, struct semaphore_elem, elem);
+
+	// waiters of sema contains the list of threads waiting for the semaphore
+	// waiters are sorted in descending order of priority by sema_up, first element has the highest priority
+	// get waiters of sema a and b
+	struct list *waiter_a_sema = &(a_sema->semaphore.waiters);
+	struct list *waiter_b_sema = &(b_sema->semaphore.waiters);
+
+	// compare the priority of the first thread in the waiters list of sema a and b, which has the highest priority
+	return list_entry (list_begin (waiter_a_sema), struct thread, elem)->priority
+		 > list_entry (list_begin (waiter_b_sema), struct thread, elem)->priority;
 }
