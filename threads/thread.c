@@ -478,6 +478,15 @@ advanced_priority_calculation (struct thread *t){
 	t->priority = ((63 - t->nice * 2)*(1<<14) - t->recent_cpu / 4)/(1<<14);
 }
 
+/* Lab 1 - advanced scheduler - recent_cpu calculation*/
+void
+advanced_recent_cpu_calculation (struct thread *t){
+	if (t == idle_thread) return;
+	t->recent_cpu = ((int64_t)( ( (int64_t)(load_avg * 2) ) * (1<<14) / ((load_avg * 2) + (1<<14)) ) ) *(t->recent_cpu)/(1<<14)
+					+ (t->nice)*(1<<14);
+}
+
+
 
 /* Sets the current thread's nice value to NICE. */
 void
