@@ -470,6 +470,15 @@ thread_get_priority (void) {
 	return thread_current ()->priority;
 }
 
+
+/* Lab 1 - advanced scheduler - priority calculation*/
+void
+advanced_priority_calculation (struct thread *t){
+	if (t == idle_thread) return;
+	t->priority = ((63 - t->nice * 2)*(1<<14) - t->recent_cpu / 4)/(1<<14);
+}
+
+
 /* Sets the current thread's nice value to NICE. */
 void
 thread_set_nice (int nice UNUSED) {
