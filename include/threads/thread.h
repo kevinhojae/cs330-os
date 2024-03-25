@@ -154,6 +154,7 @@ void thread_set_priority (int);
 void advanced_priority_calculation (struct thread *t);
 void advanced_recent_cpu_calculation (struct thread *t);
 void advanced_load_avg_calculation (void);
+void advanced_recent_cpu_increment (void);
 
 int thread_get_nice (void);
 void thread_set_nice (int);

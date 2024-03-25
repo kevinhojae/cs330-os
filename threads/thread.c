@@ -502,6 +502,13 @@ advanced_load_avg_calculation (void){
 					+ ( ((int64_t)(1<<14)) * (1<<14) / (60*(1<<14)) ) * ready_threads;
 }
 
+/* Lab 1 - advanced scheduler - recent_cpu increase*/
+void
+advanced_recent_cpu_increase (void){
+	if (thread_current() != idle_thread){
+		thread_current()->recent_cpu += (1<<14);
+	}
+}
 
 
 /* Sets the current thread's nice value to NICE. */
