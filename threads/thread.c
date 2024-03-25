@@ -486,6 +486,22 @@ advanced_recent_cpu_calculation (struct thread *t){
 					+ (t->nice)*(1<<14);
 }
 
+/* Lab 1 - advanced scheduler - load_avg calculation*/
+void
+advanced_load_avg_calculation (void){
+	int ready_threads;
+	
+	if (thread_current() != idle_thread){
+		ready_threads = list_size(&ready_list) + 1;
+	}
+	else{
+		ready_threads = list_size(&ready_list);
+	}
+
+	load_avg = ( ((int64_t)( ( (int64_t)(59*(1<<14)) ) * (1<<14) / (60*(1<<14)) )) * load_avg / (1<<14) )
+					+ ( ((int64_t)(1<<14)) * (1<<14) / (60*(1<<14)) ) * ready_threads;
+}
+
 
 
 /* Sets the current thread's nice value to NICE. */
