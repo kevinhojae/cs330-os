@@ -107,6 +107,10 @@ struct thread {
 	/* Lab #1 - local tick : wakeup 시간 체크에 사용*/
 	int64_t local_tick;
 
+	/* Lab #1 - advanced 구현에 사용*/
+	int nice;
+	int recent_cpu;	
+
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
 	unsigned magic;                     /* Detects stack overflow. */
