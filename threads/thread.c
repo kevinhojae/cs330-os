@@ -522,6 +522,18 @@ advanced_recent_cpu_update (void){
 	}
 }
 
+/* Lab 1 - advanced scheduler - priority update*/
+void
+advanced_priority_update (void){
+	struct list_elem *e;
+	struct thread *t;
+
+	for (e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)){
+		t = list_entry(e, struct thread, elem);
+		advanced_priority_calculation(t);
+	}
+}
+
 
 /* Sets the current thread's nice value to NICE. */
 void
