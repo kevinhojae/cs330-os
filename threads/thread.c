@@ -572,8 +572,24 @@ thread_get_nice (void) {
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) {
-	/* TODO: Your implementation goes here */
-	return 0;
+	//인터럽트 막기
+	enum intr_level old_level = intr_disable();
+
+	//load_avg 가져와서 100 곱하기.
+	int load_avg_mul100 = load_avg * 100;
+
+	//float값 int로 변환.
+	if(load_avg_mul100 >= 0){
+		load_avg_mul100 = (load_avg_mul100 + (1<<14)/2) / (1<<14);
+	}
+	else{
+		load_avg_mul100 = (load_avg_mul100 - (1<<14)/2) / (1<<14);
+	}
+
+	//인터럽트 해제
+	intr_set_level(old_level);
+
+	return load_avg_mul100;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
