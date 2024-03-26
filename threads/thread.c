@@ -538,7 +538,20 @@ advanced_priority_update (void){
 /* Sets the current thread's nice value to NICE. */
 void
 thread_set_nice (int nice UNUSED) {
-	/* TODO: Your implementation goes here */
+	//인터럽트 막기
+	enum intr_level old_level = intr_disable();
+
+	//현재 쓰레드 nice 설정
+	thread_current()->nice = nice;
+
+	//우선순위 설정
+	advanced_priority_calculation(thread_current());
+
+	//우선순위에 따라 선점 시도
+	thread_try_preempt();
+
+	//인터럽트 해제
+	intr_set_level(old_level);
 }
 
 /* Returns the current thread's nice value. */
