@@ -461,6 +461,28 @@ thread_get_priority (void) {
 	return thread_current ()->priority;
 }
 
+/* Donate the priority to the holder of the lock. */
+void
+thread_donate_priority (struct thread *holder, int new_priority) {
+    // Check if the new priority is higher than the holder's current priority.
+    if (new_priority > holder->priority) {
+		holder->priority_backup = holder->priority;
+        // Directly update the holder's priority if the new priority is higher.
+        holder->priority = new_priority;
+	}
+}
+
+/* Restore the priority of the holder of the lock. */
+void
+thread_restore_priority (struct thread *holder) {
+	if (holder->priority_backup == NULL)
+		return;
+
+	// Restore the holder's priority to the original value.
+	holder->priority = holder->priority_backup;
+	holder->priority_backup = NULL;
+}
+
 /* Sets the current thread's nice value to NICE. */
 void
 thread_set_nice (int nice UNUSED) {
