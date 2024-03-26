@@ -595,8 +595,23 @@ thread_get_load_avg (void) {
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) {
-	/* TODO: Your implementation goes here */
-	return 0;
+	//인터럽트 막기
+	enum intr_level old_level = intr_disable();
+
+	//현재 쓰레드 recent_cpu 가져와서 100 곱하기.
+	int recent_cpu_mul100 = (thread_current()->recent_cpu)*100;
+
+	//recent_cpu 값은 float --> int로 변환
+	if(recent_cpu_mul100 >= 0){
+		recent_cpu_mul100 = (recent_cpu_mul100 + (1<<14)/2) / (1<<14);
+	}
+	else{
+		recent_cpu_mul100 = (recent_cpu_mul100 - (1<<14)/2) / (1<<14);
+	}
+
+	//인터럽트 해제
+	intr_set_level(old_level);
+	return recent_cpu_mul100;
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
