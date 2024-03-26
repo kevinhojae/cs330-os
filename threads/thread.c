@@ -557,8 +557,16 @@ thread_set_nice (int nice UNUSED) {
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) {
-	/* TODO: Your implementation goes here */
-	return 0;
+	//인터럽트 막기
+	enum intr_level old_level = intr_disable();
+
+	//nice값 가져오기.
+	int take_nice = thread_current()->nice;
+
+	//인터럽트 해제
+	intr_set_level(old_level);
+
+	return take_nice;
 }
 
 /* Returns 100 times the system load average. */
