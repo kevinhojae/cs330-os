@@ -136,7 +136,7 @@ timer_interrupt (struct intr_frame *args UNUSED) {
 
 	/* Lab #1 - advanced 구현에 사용*/
 	if(thread_mlfqs){
-		advanced_recent_cpu_increment();
+		advanced_recent_cpu_increase();
 
 		if(ticks % 4 == 0){
 			advanced_priority_update();

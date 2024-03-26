@@ -154,7 +154,7 @@ void thread_set_priority (int);
 void advanced_priority_calculation (struct thread *t);
 void advanced_recent_cpu_calculation (struct thread *t);
 void advanced_load_avg_calculation (void);
-void advanced_recent_cpu_increment (void);
+void advanced_recent_cpu_increase (void);
 void advanced_recent_cpu_update (void);
 void advanced_priority_update (void);
 
