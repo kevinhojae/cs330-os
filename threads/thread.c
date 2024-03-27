@@ -497,15 +497,16 @@ thread_get_priority (void) {
 void
 advanced_priority_calculation (struct thread *t){
 	if (t == idle_thread) return;
-	t->priority = ((63 - t->nice * 2)*(1<<14) - t->recent_cpu / 4)/(1<<14);
+	t->priority = ((63 - t->nice*2)*(1<<14) + t->recent_cpu /(-4)) / (1<<14);
 }
 
 /* Lab 1 - advanced scheduler - recent_cpu calculation*/
 void
 advanced_recent_cpu_calculation (struct thread *t){
 	if (t == idle_thread) return;
-	t->recent_cpu = ((int64_t)( ( (int64_t)(load_avg * 2) ) * (1<<14) / ((load_avg * 2) + (1<<14)) ) ) *(t->recent_cpu)/(1<<14)
-					+ (t->nice)*(1<<14);
+
+	int L_a = load_avg*2;
+	t->recent_cpu = ((int64_t)( ((int64_t)(L_a)) * (1<<14) / (L_a+(1<<14)) ) ) * (t->recent_cpu)/(1<<14) + (t->nice)*(1<<14);
 }
 
 /* Lab 1 - advanced scheduler - load_avg calculation*/
