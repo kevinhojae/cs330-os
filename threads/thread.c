@@ -471,7 +471,7 @@ thread_donate_priority (void) {
 	struct thread *current_thread = thread_current ();
 	int new_priority = current_thread->priority;
 	struct thread *holder;
-	int NESTED_DEPTH = 5; //NOTE: nested depth를 지정해주지 않고 그냥 for문으로 waiting_lock이 null이 될 때까지 돌리면 kernel panic
+	int NESTED_DEPTH = 8; //NOTE: nested depth를 지정해주지 않고 그냥 for문으로 waiting_lock이 null이 될 때까지 돌리면 kernel panic
 
     for (int i = 0; i < NESTED_DEPTH; i++) {
         if (current_thread->waiting_lock == NULL)
@@ -500,7 +500,7 @@ thread_update_priority (void) {
 
 	// donors는 lock_acquire() 에서 정렬되었으므로, 가장 높은 priority를 가진 thread는 가장 앞의 thread
 	struct thread* highest_priority_thread = list_entry(list_front(&current_thread->donors), struct thread, donor_elem);
-	
+
 	// multiple donation case, 물려있는 여러 개의 lock 중 하나가 release되면, 그 lock의 donor을 제외한 나머지 donor들 중 가장 높은 priority를 가져와서,
 	// 본인의 최초 priority와 가장 높은 donor priority를 비교하여 더 높은 priority로 업데이트
 	if (highest_priority_thread->priority > current_thread->init_priority)
