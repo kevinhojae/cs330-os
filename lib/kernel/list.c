@@ -487,3 +487,13 @@ list_min (struct list *list, list_less_func *less, void *aux) {
 	}
 	return min;
 }
+
+/* Returns length of the list. */
+int
+list_length (struct list *list) {
+	int length = 0;
+	struct list_elem *e;
+	for (e = list_begin (list); e != list_end (list); e = list_next (e))
+		length++;
+	return length;
+}
