@@ -91,8 +91,10 @@ struct thread {
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
-	int priority_backup;				/* Priority backup for nested donation */
+	int init_priority;				/* Priority backup for nested donation */
 	struct lock *waiting_lock;			/* Lock that thread is waiting for */
+	struct list donors;					/* List of donors */
+	struct list_elem donor_elem;		/* List element for donors */
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
