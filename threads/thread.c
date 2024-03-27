@@ -387,12 +387,14 @@ thread_wake(int64_t tick){
 void 
 thread_try_preempt (void)
 {	
-	if (!list_empty (&ready_list)) {
-		// NOTE: Must use list_begin, not list_front, because list_front is not safe when the list is empty.
-		struct thread* highest_ready_thread = list_entry (list_begin (&ready_list), struct thread, elem);
-    if (thread_current ()->priority < highest_ready_thread->priority)
-      thread_yield ();
-	}
+	if (list_empty (&ready_list))
+		return;
+
+	// NOTE: Must use list_begin, not list_front, because list_front is not safe when the list is empty.
+	struct thread* highest_ready_thread = list_entry (list_begin (&ready_list), struct thread, elem);
+	if (!intr_context () && thread_current ()->priority < highest_ready_thread->priority)
+		thread_yield ();
+	
 }
 
 
