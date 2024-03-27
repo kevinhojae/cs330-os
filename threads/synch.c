@@ -382,3 +382,15 @@ compare_sema_priority_desc (struct list_elem *a, struct list_elem *b, void *aux 
 	return list_entry (list_begin (waiter_a_sema), struct thread, elem)->priority
 		 > list_entry (list_begin (waiter_b_sema), struct thread, elem)->priority;
 }
+
+/* Compare the priority of two threads in the donor list. */
+bool
+compare_donation_priority_desc(
+		struct list_elem *a,
+		struct list_elem *b,
+		void *aux UNUSED)
+{
+	struct thread *donor_thread_a = list_entry(a, struct thread, donor_elem);
+	struct thread *donor_thread_b = list_entry(b, struct thread, donor_elem);
+	return donor_thread_a->priority > donor_thread_b->priority;
+}
