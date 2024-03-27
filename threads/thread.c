@@ -31,6 +31,10 @@ static struct list ready_list;
 /* Lab #1 - sleep_list : running 되던 thread가 timer_sleep()을 만나면 이 list에 들어가게 됨.*/
 static struct list sleep_list;
 
+/* Lab #1 - mlfqs_list : mlfqs에서 사용하기 위한 list.*/
+static struct list mlfqs_list;
+
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -117,6 +121,7 @@ thread_init (void) {
 	lock_init (&tid_lock);
 	list_init (&ready_list);
 	list_init (&sleep_list);
+	list_init (&mlfqs_list);
 	list_init (&destruction_req);
 
 	/* Lab #1 - 이곳에서 global을 init하고 있으니 global_tick도 여기서 init할 수 있을 것.
@@ -127,6 +132,8 @@ thread_init (void) {
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
 	init_thread (initial_thread, "main", PRI_DEFAULT);
+
+	list_push_back (&mlfqs_list, &initial_thread->mlfqs_elem);
 	initial_thread->status = THREAD_RUNNING;
 	initial_thread->tid = allocate_tid ();
 }
@@ -208,6 +215,17 @@ thread_create (const char *name, int priority,
 
 	/* Initialize thread. */
 	init_thread (t, name, priority);
+
+	if (thread_mlfqs) {
+		t->nice = thread_current()->nice;
+		t->recent_cpu = thread_current()->recent_cpu;
+		advanced_priority_calculation(t);
+		if (function != idle)
+			list_push_back(&mlfqs_list, &t->mlfqs_elem);
+	}
+
+
+
 	tid = t->tid = allocate_tid ();
 
 	/* Call the kernel_thread if it scheduled.
@@ -427,6 +445,10 @@ thread_exit (void) {
 	/* Just set our status to dying and schedule another process.
 	   We will be destroyed during the call to schedule_tail(). */
 	intr_disable ();
+	
+	if (thread_mlfqs)
+		list_remove(&thread_current()->mlfqs_elem);
+
 	do_schedule (THREAD_DYING);
 	NOT_REACHED ();
 }
@@ -516,8 +538,8 @@ advanced_recent_cpu_update (void){
 	struct list_elem *e;
 	struct thread *t;
 
-	for (e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)){
-		t = list_entry(e, struct thread, elem);
+	for (e = list_begin(&mlfqs_list); e != list_end(&mlfqs_list); e = list_next(e)){
+		t = list_entry(e, struct thread, mlfqs_elem);
 		advanced_recent_cpu_calculation(t);
 	}
 }
@@ -528,8 +550,8 @@ advanced_priority_update (void){
 	struct list_elem *e;
 	struct thread *t;
 
-	for (e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)){
-		t = list_entry(e, struct thread, elem);
+	for (e = list_begin(&mlfqs_list); e != list_end(&mlfqs_list); e = list_next(e)){
+		t = list_entry(e, struct thread, mlfqs_elem);
 		advanced_priority_calculation(t);
 	}
 }
@@ -676,6 +698,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
+	
 	t->nice = 0;
 	t->recent_cpu = 0;
 }
