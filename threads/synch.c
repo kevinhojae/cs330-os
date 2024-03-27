@@ -197,8 +197,11 @@ lock_acquire (struct lock *lock) {
 
 	if (lock->holder != NULL) {
 		thread_donate_priority(lock->holder, thread_current ()->priority);
+		thread_current ()->waiting_lock = lock;
 	}
+	// wait for the lock is released by the current holder
 	sema_down (&lock->semaphore);
+	thread_current ()->waiting_lock = NULL;
 	lock->holder = thread_current ();
 }
 
