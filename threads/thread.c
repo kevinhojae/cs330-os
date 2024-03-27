@@ -447,12 +447,15 @@ thread_yield (void) {
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) {
-	thread_current ()->priority = new_priority;
+	// thread가 가지고 있는 lock을 기다리고 있는 다른 thread가 있다면 (=thread의 donors 리스트가 존재한다면)
+	// thread의 priorty는 새로운 priority로 바뀌는 것이 아닌 init_priority로 보관해두고, donor 리스트가 비워지면 priority를 init_priority로 바꾼다.
+	thread_current ()->init_priority = new_priority;
 	
 	// reorder the ready list for the new priority
 	if (!list_empty(&ready_list)) {
 		list_sort(&ready_list, (list_less_func *) &compare_thread_priority_desc, NULL);
-		thread_try_preempt();
+		thread_update_priority (); // 여기서 thread의 priority를 실제로 업데이트한다.
+		thread_try_preempt ();
 	}
 }
 
