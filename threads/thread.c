@@ -470,6 +470,11 @@ thread_donate_priority (struct thread *holder, int new_priority) {
 		holder->priority_backup = holder->priority;
         // Directly update the holder's priority if the new priority is higher.
         holder->priority = new_priority;
+
+		if (holder->waiting_lock != NULL) {
+			// For nested donation, recursively donate the priority to the holder of the lock.
+			thread_donate_priority(holder->waiting_lock->holder, new_priority);
+		}
 	}
 }
 
@@ -482,6 +487,11 @@ thread_restore_priority (struct thread *holder) {
 	// Restore the holder's priority to the original value.
 	holder->priority = holder->priority_backup;
 	holder->priority_backup = NULL;
+
+	if (holder->waiting_lock != NULL) {
+		// For nested donation, recursively restore the priority of the holder of the lock.
+		thread_restore_priority(holder->waiting_lock->holder);
+	}
 }
 
 /* Sets the current thread's nice value to NICE. */
