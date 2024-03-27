@@ -465,21 +465,24 @@ thread_get_priority (void) {
 	return thread_current ()->priority;
 }
 
-/* Donate the priority to the holder of the lock. */
+/** Donate the priority to the holder of the lock.
+ * This function is called when the current thread attempts to acquire a lock.
+ * The current thread donates its priority to the holder of the lock.
+ */
 void
 thread_donate_priority (void) {
 	struct thread *current_thread = thread_current ();
-	int new_priority = current_thread->priority;
+	int new_priority = current_thread->priority; // donate할 priority
+	
 	struct thread *holder;
 	int NESTED_DEPTH = 8; //NOTE: nested depth를 지정해주지 않고 그냥 for문으로 waiting_lock이 null이 될 때까지 돌리면 kernel panic
-
     for (int i = 0; i < NESTED_DEPTH; i++) {
         if (current_thread->waiting_lock == NULL)
             return;
 
-		holder = current_thread->waiting_lock->holder;
-		holder->priority = new_priority;
-		current_thread = holder;
+		holder = current_thread->waiting_lock->holder; // lock을 가지고 있는 thread
+		holder->priority = new_priority; // holder의 priority를 donate할 priority로 업데이트
+		current_thread = holder; // current_thread를 holder로 변경
     }
 }
 

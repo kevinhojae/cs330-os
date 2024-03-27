@@ -200,7 +200,7 @@ lock_acquire (struct lock *lock) {
 		// set the lock that the current thread is waiting for
 		current_thread->waiting_lock = lock;
 
-		// insert donor to the lock holder's donor list
+		// insert donor to the lock holder's donor list, sort by priority of donor in descending order
 		list_insert_ordered(&lock->holder->donors, &current_thread->donor_elem, (list_less_func *) &compare_donation_priority_desc, NULL);
 
 		// donate the priority to the lock holder
@@ -246,7 +246,7 @@ lock_release (struct lock *lock) {
 	struct thread* current_thread = thread_current();
 	for (struct list_elem *e = list_begin(&current_thread->donors); e != list_end(&current_thread->donors); e = list_next(e)) {
 		struct thread *t = list_entry(e, struct thread, donor_elem);
-		if (t->waiting_lock == lock)
+		if (t->waiting_lock == lock) // thread가 기다리는 lock이 release되면 donor list에서 제거
 			list_remove(e);
 	}
 
