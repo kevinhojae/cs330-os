@@ -479,20 +479,28 @@ thread_donate_priority (void) {
 		current_thread = holder;
     }
 }
+
+/** Update the priority of the current thread based on the donors list.
+ * This function is called in the following cases:
+ * 1. When the current thread releases the lock it holds.
+ * 2. When the current thread's priority is set to a new value.
+ */
 void
-thread_restore_priority (struct thread *holder) {
-	if (holder->priority_backup == NULL)
+thread_update_priority (void) {
+	struct thread* current_thread = thread_current ();
+
+	// thread가 donors 리스트를 가지고 있지 않다면(=자신이 가지고 있는 lock을 기다리는 다른 thread가 없다면) init_priority로 돌아간다
+	if (list_empty(&(current_thread->donors))) {
+		current_thread->priority = current_thread->init_priority;
 		return;
-
-	// Restore the holder's priority to the original value.
-	holder->priority = holder->priority_backup;
-	holder->priority_backup = NULL;
-
-	if (holder->waiting_lock != NULL) {
-		// For nested donation, recursively restore the priority of the holder of the lock.
-		thread_restore_priority(holder->waiting_lock->holder);
 	}
+
+	// donors는 lock_acquire() 에서 정렬되었으므로, 가장 높은 priority를 가진 thread는 가장 앞의 thread이다.
+	struct thread* highest_priority_thread = list_entry(list_front(&current_thread->donors), struct thread, donor_elem);
+	if (highest_priority_thread->priority > current_thread->priority)
+		current_thread->priority = highest_priority_thread->priority;
 }
+
 
 /* Sets the current thread's nice value to NICE. */
 void

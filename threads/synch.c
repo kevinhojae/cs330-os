@@ -241,13 +241,22 @@ void
 lock_release (struct lock *lock) {
 	ASSERT (lock != NULL);
 	ASSERT (lock_held_by_current_thread (lock));
+	
+	// remove lock from the current thread's donor list
+	struct thread* current_thread = thread_current();
+	for (struct list_elem *e = list_begin(&current_thread->donors); e != list_end(&current_thread->donors); e = list_next(e)) {
+		struct thread *t = list_entry(e, struct thread, donor_elem);
+		if (t->waiting_lock == lock)
+			list_remove(e);
+	}
 
-	if (lock->holder != NULL)
-		thread_restore_priority (lock->holder);
+	// update the holder thread's priority of the lock
+	thread_update_priority ();
+
 	lock->holder = NULL;
 	sema_up (&lock->semaphore);
 }
-
+ 
 /* Returns true if the current thread holds LOCK, false
    otherwise.  (Note that testing whether some other thread holds
    a lock would be racy.) */
