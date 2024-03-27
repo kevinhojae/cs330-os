@@ -141,11 +141,13 @@ timer_interrupt (struct intr_frame *args UNUSED) {
 		if(ticks % 4 == 0){
 			advanced_priority_update();
 
-			if(ticks % TIMER_FREQ == 0){
-				advanced_recent_cpu_update();
-				advanced_load_avg_calculation();
-			}
 		}
+
+		if(ticks % TIMER_FREQ == 0){
+			advanced_load_avg_calculation();
+			advanced_recent_cpu_update();
+		}
+		
 	}
 
 
