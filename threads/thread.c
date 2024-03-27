@@ -464,21 +464,21 @@ thread_get_priority (void) {
 
 /* Donate the priority to the holder of the lock. */
 void
-thread_donate_priority (struct thread *holder, int new_priority) {
-    // Check if the new priority is higher than the holder's current priority.
-    if (new_priority > holder->priority) {
-		holder->priority_backup = holder->priority;
-        // Directly update the holder's priority if the new priority is higher.
-        holder->priority = new_priority;
+thread_donate_priority (void) {
+	struct thread *current_thread = thread_current ();
+	int new_priority = current_thread->priority;
+	struct thread *holder;
+	int NESTED_DEPTH = 5; //NOTE: nested depth를 지정해주지 않고 그냥 for문으로 waiting_lock이 null이 될 때까지 돌리면 kernel panic
 
-		if (holder->waiting_lock != NULL) {
-			// For nested donation, recursively donate the priority to the holder of the lock.
-			thread_donate_priority(holder->waiting_lock->holder, new_priority);
-		}
-	}
+    for (int i = 0; i < NESTED_DEPTH; i++) {
+        if (current_thread->waiting_lock == NULL)
+            return;
+
+		holder = current_thread->waiting_lock->holder;
+		holder->priority = new_priority;
+		current_thread = holder;
+    }
 }
-
-/* Restore the priority of the holder of the lock. */
 void
 thread_restore_priority (struct thread *holder) {
 	if (holder->priority_backup == NULL)
