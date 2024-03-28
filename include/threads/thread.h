@@ -91,17 +91,24 @@ struct thread {
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
+
+	/* Lab #1: Threads - Alarm clock */
+	int64_t local_tick; 				/* Local tick for thread_sleep */
+
+	/* Lab #1: Threads - Priority- donation */
 	int init_priority;					/* Priority backup for nested donation */
 	struct lock *waiting_lock;			/* Lock that thread is waiting for */
 	struct list donors;					/* List of donors */
 	struct list_elem donor_elem;		/* List element for donors */
 
+	/* Lab #1 - advanced 구현에 사용*/
+	int nice;
+	int recent_cpu;	
+	
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
+	struct list_elem mlfqs_elem;        /* List element for all threads list. */
 
-	struct list_elem mlfqs_elem;           /* List element for all threads list. */
-
-	
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -111,13 +118,6 @@ struct thread {
 	/* Table for whole virtual memory owned by thread. */
 	struct supplemental_page_table spt;
 #endif
-
-	/* Lab #1 - local tick : wakeup 시간 체크에 사용*/
-	int64_t local_tick;
-
-	/* Lab #1 - advanced 구현에 사용*/
-	int nice;
-	int recent_cpu;	
 
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
