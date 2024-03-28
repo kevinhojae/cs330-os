@@ -241,7 +241,7 @@ thread_create (const char *name, int priority,
 
 	/* Add to run queue. */
 	thread_unblock (t); // NOTE: unblock the new thread to add it to the ready list.
-	thread_try_preempt();
+	thread_try_preempt ();
 
 	return tid;
 }
@@ -331,7 +331,7 @@ thread_sleep (int64_t ticks) {
 	curr_thread -> local_tick = ticks;
 
 	/* 이 local_tick이 global_tick보다 작은지 체크하고, global_tick을 가장 작은 값으로 재정의 시켜야 한다.*/
-	if(curr_thread->local_tick < global_tick){
+	if (curr_thread->local_tick < global_tick) {
 		global_tick = curr_thread->local_tick;
 	}
 
@@ -348,7 +348,7 @@ thread_sleep (int64_t ticks) {
 
 /* Lab #1 - 쓰레드를 sleep_list에서 ready_list로 보내는 작용*/
 void
-thread_wake(int64_t tick){
+thread_wake(int64_t tick) {
 	/*global tick 변수 사용하고.*/
 	global_tick = INT64_MAX;
 
@@ -359,34 +359,30 @@ thread_wake(int64_t tick){
 
 	/*리스트의 끝까지 원소 하나하나 체크.
 	다만, list 정렬된 상태이기에 wake up할 시간이 안 된 쓰레드를 처음 만난 이후부터는 확인할 필요 없음-> break*/
-	while (element_from_sleep_list != list_end(&sleep_list))
-	{
+	while (element_from_sleep_list != list_end(&sleep_list)) {
 		struct thread *cur = list_entry(element_from_sleep_list, struct thread, elem);
 
-		if(cur->local_tick <= tick){
+		if (cur->local_tick <= tick) {
 			element_from_sleep_list = list_remove(&cur->elem);
 			thread_unblock(cur);
 		}
-		else{
+		else {
 			/* wakeup하지 않아도 되는 쓰레드 만날 경우 : global tick update 해주고, break */
 			//element_from_sleep_list = list_next(element_from_sleep_list);
 
-			if(cur->local_tick < global_tick){
+			if (cur->local_tick < global_tick) {
 				global_tick = cur->local_tick;
 			}
 
 			break;
 		}
-
 	}
-	
 }
 
 
 /* preempt the current thread if the ready list is not empty and the highest priority thread has higher priority than the current thread */
 void 
-thread_try_preempt (void)
-{		
+thread_try_preempt (void) {
 	if (list_empty (&ready_list)) {
 		return;
 	}
@@ -401,7 +397,7 @@ thread_try_preempt (void)
 
 /* Lab #1 - global tick 가져오기. -> timer.c file에서 이 변수 사용하려니 안 되는 것 같다.*/
 int64_t
-get_global_tick(void){
+get_global_tick (void) {
 	return global_tick;
 }
 
@@ -449,8 +445,9 @@ thread_exit (void) {
 	   We will be destroyed during the call to schedule_tail(). */
 	intr_disable ();
 	
-	if (thread_mlfqs)
+	if (thread_mlfqs) {
 		list_remove(&thread_current()->mlfqs_elem);
+	}
 
 	do_schedule (THREAD_DYING);
 	NOT_REACHED ();
@@ -477,7 +474,7 @@ thread_yield (void) {
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) {
-	if(thread_mlfqs){
+	if (thread_mlfqs) {
 		return;
 	}
 	
@@ -501,15 +498,19 @@ thread_get_priority (void) {
 
 /* Lab 1 - advanced scheduler - priority calculation*/
 void
-advanced_priority_calculation (struct thread *t){
-	if (t == idle_thread) return;
+advanced_priority_calculation (struct thread *t) {
+	if (t == idle_thread) {
+		return;
+	}
 	t->priority = ((63 - t->nice*2)*(1<<14) + t->recent_cpu /(-4)) / (1<<14);
 }
 
 /* Lab 1 - advanced scheduler - recent_cpu calculation*/
 void
-advanced_recent_cpu_calculation (struct thread *t){
-	if (t == idle_thread) return;
+advanced_recent_cpu_calculation (struct thread *t) {
+	if (t == idle_thread) {
+		return;
+	}
 
 	int L_a = load_avg*2;
 	t->recent_cpu = ((int64_t)( ((int64_t)(L_a)) * (1<<14) / (L_a+(1<<14)) ) ) * (t->recent_cpu)/(1<<14) + (t->nice)*(1<<14);
@@ -517,13 +518,13 @@ advanced_recent_cpu_calculation (struct thread *t){
 
 /* Lab 1 - advanced scheduler - load_avg calculation*/
 void
-advanced_load_avg_calculation (void){
+advanced_load_avg_calculation (void) {
 	int ready_threads;
 	
-	if (thread_current() != idle_thread){
+	if (thread_current() != idle_thread) {
 		ready_threads = list_size(&ready_list) + 1;
 	}
-	else{
+	else {
 		ready_threads = list_size(&ready_list);
 	}
 
@@ -533,19 +534,19 @@ advanced_load_avg_calculation (void){
 
 /* Lab 1 - advanced scheduler - recent_cpu increase*/
 void
-advanced_recent_cpu_increase (void){
-	if (thread_current() != idle_thread){
+advanced_recent_cpu_increase (void) {
+	if (thread_current() != idle_thread) {
 		thread_current()->recent_cpu += (1<<14);
 	}
 }
 
 /* Lab 1 - advanced scheduler - update recent_cpu*/
 void
-advanced_recent_cpu_update (void){
+advanced_recent_cpu_update (void) {
 	struct list_elem *e;
 	struct thread *t;
 
-	for (e = list_begin(&mlfqs_list); e != list_end(&mlfqs_list); e = list_next(e)){
+	for (e = list_begin(&mlfqs_list); e != list_end(&mlfqs_list); e = list_next(e)) {
 		t = list_entry(e, struct thread, mlfqs_elem);
 		advanced_recent_cpu_calculation(t);
 	}
@@ -553,13 +554,15 @@ advanced_recent_cpu_update (void){
 
 /* Lab 1 - advanced scheduler - priority update*/
 void
-advanced_priority_update (void){
+advanced_priority_update (void) {
 	struct list_elem *e;
 	struct thread *t;
 
-	for (e = list_begin(&mlfqs_list); e != list_end(&mlfqs_list); e = list_next(e)){
+	for (e = list_begin(&mlfqs_list); e != list_end(&mlfqs_list); e = list_next(e)) {
 		t = list_entry(e, struct thread, mlfqs_elem);
 		advanced_priority_calculation(t);
+	}
+}
 
 /** Donate the priority to the holder of the lock.
  * This function is called when the current thread attempts to acquire a lock.
@@ -608,7 +611,6 @@ thread_update_priority (void) {
 	}
 }
 
-
 /* Sets the current thread's nice value to NICE. */
 void
 thread_set_nice (int nice UNUSED) {
@@ -653,10 +655,10 @@ thread_get_load_avg (void) {
 	int load_avg_mul100 = load_avg * 100;
 
 	//float값 int로 변환.
-	if(load_avg_mul100 >= 0){
+	if (load_avg_mul100 >= 0) {
 		load_avg_mul100 = (load_avg_mul100 + (1<<14)/2) / (1<<14);
 	}
-	else{
+	else {
 		load_avg_mul100 = (load_avg_mul100 - (1<<14)/2) / (1<<14);
 	}
 
@@ -676,10 +678,10 @@ thread_get_recent_cpu (void) {
 	int recent_cpu_mul100 = (thread_current()->recent_cpu)*100;
 
 	//recent_cpu 값은 float --> int로 변환
-	if(recent_cpu_mul100 >= 0){
+	if (recent_cpu_mul100 >= 0) {
 		recent_cpu_mul100 = (recent_cpu_mul100 + (1<<14)/2) / (1<<14);
 	}
-	else{
+	else {
 		recent_cpu_mul100 = (recent_cpu_mul100 - (1<<14)/2) / (1<<14);
 	}
 
