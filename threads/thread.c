@@ -364,13 +364,15 @@ thread_wake(int64_t tick){
 void 
 thread_try_preempt (void)
 {		
-	if (list_empty (&ready_list))
+	if (list_empty (&ready_list)) {
 		return;
+	}
 
 	// NOTE: Must use list_begin, not list_front, because list_front is not safe when the list is empty.
 	struct thread* highest_ready_thread = list_entry (list_begin (&ready_list), struct thread, elem);
-	if (!intr_context () && thread_current ()->priority < highest_ready_thread->priority)
+	if (!intr_context () && thread_current ()->priority < highest_ready_thread->priority) {
 		thread_yield ();
+	}
 }
 
 
@@ -437,9 +439,10 @@ thread_yield (void) {
 	ASSERT (!intr_context ());
 
 	old_level = intr_disable ();
-	if (curr != idle_thread)
+	if (curr != idle_thread) {
 		// list_push_back (&ready_list, &curr->elem);
 		list_insert_ordered(&ready_list, &curr->elem, (list_less_func *) &compare_thread_priority_desc, NULL);
+	}
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
@@ -477,8 +480,9 @@ thread_donate_priority (void) {
 	struct thread *holder;
 	int NESTED_DEPTH = 8; //NOTE: nested depth를 지정해주지 않고 그냥 for문으로 waiting_lock이 null이 될 때까지 돌리면 kernel panic
     for (int i = 0; i < NESTED_DEPTH; i++) {
-        if (current_thread->waiting_lock == NULL)
+        if (current_thread->waiting_lock == NULL) {
             return;
+		}
 
 		holder = current_thread->waiting_lock->holder; // lock을 가지고 있는 thread
 		holder->priority = new_priority; // holder의 priority를 donate할 priority로 업데이트
@@ -506,8 +510,9 @@ thread_update_priority (void) {
 
 	// multiple donation case, 물려있는 여러 개의 lock 중 하나가 release되면, 그 lock의 donor을 제외한 나머지 donor들 중 가장 높은 priority를 가져와서,
 	// 본인의 최초 priority와 가장 높은 donor priority를 비교하여 더 높은 priority로 업데이트
-	if (highest_priority_thread->priority > current_thread->init_priority)
+	if (highest_priority_thread->priority > current_thread->init_priority) {
 		current_thread->priority = highest_priority_thread->priority;
+	}
 }
 
 

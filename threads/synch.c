@@ -226,8 +226,9 @@ lock_try_acquire (struct lock *lock) {
 	ASSERT (!lock_held_by_current_thread (lock));
 
 	success = sema_try_down (&lock->semaphore);
-	if (success)
+	if (success) {
 		lock->holder = thread_current ();
+	}
 	return success;
 }
 
@@ -246,8 +247,9 @@ lock_release (struct lock *lock) {
 	struct thread* current_thread = thread_current();
 	for (struct list_elem *e = list_begin(&current_thread->donors); e != list_end(&current_thread->donors); e = list_next(e)) {
 		struct thread *t = list_entry(e, struct thread, donor_elem);
-		if (t->waiting_lock == lock) // thread가 기다리는 lock이 release되면 donor list에서 제거
+		if (t->waiting_lock == lock) {// thread가 기다리는 lock이 release되면 donor list에서 제거
 			list_remove(e);
+		}
 	}
 
 	// update the holder thread's priority of the lock
@@ -334,10 +336,11 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED) {
 	ASSERT (!intr_context ());
 	ASSERT (lock_held_by_current_thread (lock));
 
-	if (!list_empty (&cond->waiters))
+	if (!list_empty (&cond->waiters)) {
 		list_sort(&cond->waiters, (list_less_func *) &compare_sema_priority_desc, NULL);
 		sema_up (&list_entry (list_pop_front (&cond->waiters),
 					struct semaphore_elem, elem)->semaphore);
+	}
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
