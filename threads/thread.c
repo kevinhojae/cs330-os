@@ -560,6 +560,8 @@ advanced_priority_update (void){
 	for (e = list_begin(&mlfqs_list); e != list_end(&mlfqs_list); e = list_next(e)){
 		t = list_entry(e, struct thread, mlfqs_elem);
 		advanced_priority_calculation(t);
+	}
+}
 
 /** Donate the priority to the holder of the lock.
  * This function is called when the current thread attempts to acquire a lock.
