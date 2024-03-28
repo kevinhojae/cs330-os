@@ -140,14 +140,14 @@ timer_interrupt (struct intr_frame *args UNUSED) {
 
 		if(ticks % 4 == 0){
 			advanced_priority_update();
-
 		}
 
 		if(ticks % TIMER_FREQ == 0){
+			//load_avg의 값이 recent_cpu 값에 적용되므로 load_avg를 먼저 update해 준다.
 			advanced_load_avg_calculation();
+			//load_avg가 업데이트 되었으므로 이를 이용하여 recent_cpu를 업데이트 해 준다.
 			advanced_recent_cpu_update();
 		}
-		
 	}
 
 

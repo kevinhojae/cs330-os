@@ -217,14 +217,18 @@ thread_create (const char *name, int priority,
 	init_thread (t, name, priority);
 
 	if (thread_mlfqs) {
-		t->nice = thread_current()->nice;
-		t->recent_cpu = thread_current()->recent_cpu;
+		struct thread *curr_thread = thread_current ();
+		//현재 쓰레드의 nice, recent_cpu를 새로운 쓰레드에 복사
+		t->nice = curr_thread->nice;
+		t->recent_cpu = curr_thread->recent_cpu;
+
+		//새로운 쓰레드의 priority를 계산
 		advanced_priority_calculation(t);
+
+		//mlfqs_list에 추가 (idle 쓰레드 제외)
 		if (function != idle)
 			list_push_back(&mlfqs_list, &t->mlfqs_elem);
 	}
-
-
 
 	tid = t->tid = allocate_tid ();
 
@@ -329,7 +333,6 @@ thread_sleep (int64_t ticks) {
 
 	/* local_tick에 현재 ticks를 넣어주면서*/
 	curr_thread -> local_tick = ticks;
-
 	/* 이 local_tick이 global_tick보다 작은지 체크하고, global_tick을 가장 작은 값으로 재정의 시켜야 한다.*/
 	if (curr_thread->local_tick < global_tick) {
 		global_tick = curr_thread->local_tick;
@@ -446,6 +449,7 @@ thread_exit (void) {
 	intr_disable ();
 	
 	if (thread_mlfqs) {
+		// remove the thread from the mlfqs_list
 		list_remove(&thread_current()->mlfqs_elem);
 	}
 
@@ -687,6 +691,7 @@ thread_get_recent_cpu (void) {
 
 	//인터럽트 해제
 	intr_set_level(old_level);
+
 	return recent_cpu_mul100;
 }
 
