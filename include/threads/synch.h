@@ -42,6 +42,7 @@ void cond_broadcast (struct condition *, struct lock *);
 bool compare_thread_priority_desc(struct list_elem *a, struct list_elem *b, void *aux);
 bool compare_local_tick_asc(struct list_elem *a, struct list_elem *b,	void *aux);
 bool compare_sema_priority_desc(struct list_elem *a, struct list_elem *b, void *aux);
+bool compare_donation_priority_desc(struct list_elem *a, struct list_elem *b, void *aux);
 
 /* Optimization barrier.
  *

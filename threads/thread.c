@@ -386,15 +386,16 @@ thread_wake(int64_t tick){
 /* preempt the current thread if the ready list is not empty and the highest priority thread has higher priority than the current thread */
 void 
 thread_try_preempt (void)
-{	
-	if (list_empty (&ready_list))
+{		
+	if (list_empty (&ready_list)) {
 		return;
+	}
 
 	// NOTE: Must use list_begin, not list_front, because list_front is not safe when the list is empty.
 	struct thread* highest_ready_thread = list_entry (list_begin (&ready_list), struct thread, elem);
-	if (!intr_context () && thread_current ()->priority < highest_ready_thread->priority)
+	if (!intr_context () && thread_current ()->priority < highest_ready_thread->priority) {
 		thread_yield ();
-	
+	}
 }
 
 
@@ -465,9 +466,10 @@ thread_yield (void) {
 	ASSERT (!intr_context ());
 
 	old_level = intr_disable ();
-	if (curr != idle_thread)
+	if (curr != idle_thread) {
 		// list_push_back (&ready_list, &curr->elem);
 		list_insert_ordered(&ready_list, &curr->elem, (list_less_func *) &compare_thread_priority_desc, NULL);
+	}
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
@@ -479,12 +481,15 @@ thread_set_priority (int new_priority) {
 		return;
 	}
 	
-	thread_current ()->priority = new_priority;
+	// thread가 가지고 있는 lock을 기다리고 있는 다른 thread가 있다면 (=thread의 donors 리스트가 존재한다면)
+	// thread의 priorty는 새로운 priority로 바뀌는 것이 아닌 init_priority로 보관해두고, donor 리스트가 비워지면 priority를 init_priority로 바꾼다.
+	thread_current ()->init_priority = new_priority;
 	
 	// reorder the ready list for the new priority
 	if (!list_empty(&ready_list)) {
 		list_sort(&ready_list, (list_less_func *) &compare_thread_priority_desc, NULL);
-		thread_try_preempt();
+		thread_update_priority (); // 여기서 thread의 priority를 실제로 업데이트한다.
+		thread_try_preempt ();
 	}
 }
 
@@ -493,7 +498,6 @@ int
 thread_get_priority (void) {
 	return thread_current ()->priority;
 }
-
 
 /* Lab 1 - advanced scheduler - priority calculation*/
 void
@@ -556,6 +560,51 @@ advanced_priority_update (void){
 	for (e = list_begin(&mlfqs_list); e != list_end(&mlfqs_list); e = list_next(e)){
 		t = list_entry(e, struct thread, mlfqs_elem);
 		advanced_priority_calculation(t);
+
+/** Donate the priority to the holder of the lock.
+ * This function is called when the current thread attempts to acquire a lock.
+ * The current thread donates its priority to the holder of the lock.
+ */
+void
+thread_donate_priority (void) {
+	struct thread *current_thread = thread_current ();
+	int new_priority = current_thread->priority; // donate할 priority
+	
+	struct thread *holder;
+	int NESTED_DEPTH = 8; //NOTE: nested depth를 지정해주지 않고 그냥 for문으로 waiting_lock이 null이 될 때까지 돌리면 kernel panic
+    for (int i = 0; i < NESTED_DEPTH; i++) {
+        if (current_thread->waiting_lock == NULL) {
+            return;
+		}
+
+		holder = current_thread->waiting_lock->holder; // lock을 가지고 있는 thread
+		holder->priority = new_priority; // holder의 priority를 donate할 priority로 업데이트
+		current_thread = holder; // current_thread를 holder로 변경
+    }
+}
+
+/** Update the priority of the current thread based on the donors list.
+ * This function is called in the following cases:
+ * 1. When the current thread releases the lock it holds.
+ * 2. When the current thread's priority is set to a new value.
+ */
+void
+thread_update_priority (void) {
+	struct thread* current_thread = thread_current ();
+
+	// thread가 donors 리스트를 가지고 있지 않다면(=자신이 가지고 있는 lock을 기다리는 다른 thread가 없다면) init_priority로 돌아감
+	if (list_empty(&(current_thread->donors))) {
+		current_thread->priority = current_thread->init_priority;
+		return;
+	}
+
+	// donors는 lock_acquire() 에서 정렬되었으므로, 가장 높은 priority를 가진 thread는 가장 앞의 thread
+	struct thread* highest_priority_thread = list_entry(list_front(&current_thread->donors), struct thread, donor_elem);
+
+	// multiple donation case, 물려있는 여러 개의 lock 중 하나가 release되면, 그 lock의 donor을 제외한 나머지 donor들 중 가장 높은 priority를 가져와서,
+	// 본인의 최초 priority와 가장 높은 donor priority를 비교하여 더 높은 priority로 업데이트
+	if (highest_priority_thread->priority > current_thread->init_priority) {
+		current_thread->priority = highest_priority_thread->priority;
 	}
 }
 
@@ -700,6 +749,9 @@ init_thread (struct thread *t, const char *name, int priority) {
 	strlcpy (t->name, name, sizeof t->name);
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
+	t->init_priority = priority;
+	t->waiting_lock = NULL;
+	list_init(&(t->donors));
 	t->magic = THREAD_MAGIC;
 	
 	t->nice = 0;

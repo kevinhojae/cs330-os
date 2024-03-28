@@ -91,6 +91,10 @@ struct thread {
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
+	int init_priority;					/* Priority backup for nested donation */
+	struct lock *waiting_lock;			/* Lock that thread is waiting for */
+	struct list donors;					/* List of donors */
+	struct list_elem donor_elem;		/* List element for donors */
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
@@ -153,6 +157,8 @@ void thread_yield (void);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+void thread_donate_priority (void);
+void thread_update_priority (void);
 
 /* Lab 1 - 함수 정의*/
 void advanced_priority_calculation (struct thread *t);
