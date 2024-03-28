@@ -99,6 +99,10 @@ struct thread {
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 
+	struct list_elem mlfqs_elem;           /* List element for all threads list. */
+
+	
+
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
@@ -110,6 +114,10 @@ struct thread {
 
 	/* Lab #1 - local tick : wakeup 시간 체크에 사용*/
 	int64_t local_tick;
+
+	/* Lab #1 - advanced 구현에 사용*/
+	int nice;
+	int recent_cpu;	
 
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
@@ -151,6 +159,14 @@ int thread_get_priority (void);
 void thread_set_priority (int);
 void thread_donate_priority (void);
 void thread_update_priority (void);
+
+/* Lab 1 - 함수 정의*/
+void advanced_priority_calculation (struct thread *t);
+void advanced_recent_cpu_calculation (struct thread *t);
+void advanced_load_avg_calculation (void);
+void advanced_recent_cpu_increase (void);
+void advanced_recent_cpu_update (void);
+void advanced_priority_update (void);
 
 int thread_get_nice (void);
 void thread_set_nice (int);

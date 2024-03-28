@@ -134,6 +134,23 @@ timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
 	thread_tick ();
 
+	/* Lab #1 - advanced 구현에 사용*/
+	if(thread_mlfqs){
+		advanced_recent_cpu_increase();
+
+		if(ticks % 4 == 0){
+			advanced_priority_update();
+
+		}
+
+		if(ticks % TIMER_FREQ == 0){
+			advanced_load_avg_calculation();
+			advanced_recent_cpu_update();
+		}
+		
+	}
+
+
 	if(get_global_tick() <= ticks){
 		thread_wake(ticks);
 	}

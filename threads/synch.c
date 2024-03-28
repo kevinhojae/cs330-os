@@ -195,6 +195,12 @@ lock_acquire (struct lock *lock) {
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
 
+	if(thread_mlfqs){
+		sema_down (&lock->semaphore);
+		lock->holder = thread_current ();
+		return;
+	}
+
 	struct thread *current_thread = thread_current();
 	if (lock->holder != NULL) {
 		// set the lock that the current thread is waiting for
@@ -206,6 +212,7 @@ lock_acquire (struct lock *lock) {
 		// donate the priority to the lock holder
 		thread_donate_priority();
 	}
+  
 	// wait for the lock is released by the current holder
 	sema_down (&lock->semaphore);
 	current_thread->waiting_lock = NULL;
@@ -255,6 +262,13 @@ lock_release (struct lock *lock) {
 	// update the holder thread's priority of the lock
 	thread_update_priority ();
 
+
+	if(thread_mlfqs){
+		lock->holder = NULL;
+		sema_up (&lock->semaphore);
+		return;
+	}
+	
 	lock->holder = NULL;
 	sema_up (&lock->semaphore);
 }
