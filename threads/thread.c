@@ -610,7 +610,6 @@ thread_update_priority (void) {
 	}
 }
 
-
 /* Sets the current thread's nice value to NICE. */
 void
 thread_set_nice (int nice UNUSED) {
@@ -655,10 +654,10 @@ thread_get_load_avg (void) {
 	int load_avg_mul100 = load_avg * 100;
 
 	//float값 int로 변환.
-	if(load_avg_mul100 >= 0){
+	if (load_avg_mul100 >= 0) {
 		load_avg_mul100 = (load_avg_mul100 + (1<<14)/2) / (1<<14);
 	}
-	else{
+	else {
 		load_avg_mul100 = (load_avg_mul100 - (1<<14)/2) / (1<<14);
 	}
 
@@ -678,10 +677,10 @@ thread_get_recent_cpu (void) {
 	int recent_cpu_mul100 = (thread_current()->recent_cpu)*100;
 
 	//recent_cpu 값은 float --> int로 변환
-	if(recent_cpu_mul100 >= 0){
+	if (recent_cpu_mul100 >= 0) {
 		recent_cpu_mul100 = (recent_cpu_mul100 + (1<<14)/2) / (1<<14);
 	}
-	else{
+	else {
 		recent_cpu_mul100 = (recent_cpu_mul100 - (1<<14)/2) / (1<<14);
 	}
 
