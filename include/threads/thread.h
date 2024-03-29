@@ -107,8 +107,7 @@ struct thread {
 	
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
-	struct list_elem mlfqs_elem;        /* List element for all threads list. */
-
+	struct list_elem mlfqs_elem;        /* List element for mlfqs threads list. */
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */

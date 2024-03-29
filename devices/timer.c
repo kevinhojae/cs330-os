@@ -136,25 +136,22 @@ timer_interrupt (struct intr_frame *args UNUSED) {
 
 	/* Lab #1 - advanced 구현에 사용*/
 	if(thread_mlfqs){
+		//현재 실행중인 쓰레드의 recent_cpu 값을 1 증가.
 		advanced_recent_cpu_increase();
-
+		//tick이 4 지날때마다 priority 계산을 돌려준다.
 		if(ticks % 4 == 0){
 			advanced_priority_update();
-
 		}
 
 		if(ticks % TIMER_FREQ == 0){
+			//load_avg의 값이 recent_cpu 값에 적용되므로 load_avg를 먼저 update해 준다.
 			advanced_load_avg_calculation();
+			//load_avg가 업데이트 되었으므로 이를 이용하여 recent_cpu를 업데이트 해 준다.
 			advanced_recent_cpu_update();
 		}
-		
 	}
-
-
-	if(get_global_tick() <= ticks){
-		thread_wake(ticks);
-	}
-
+	
+	thread_wake(ticks);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
