@@ -253,6 +253,14 @@ lock_release (struct lock *lock) {
 	
 	// remove lock from the current thread's donor list
 	struct thread* current_thread = thread_current();
+
+	//mlfqs 실행시 work load 줄이도록 먼저 실행
+	if(thread_mlfqs){
+		lock->holder = NULL;
+		sema_up (&lock->semaphore);
+		return;
+	}
+
 	for (struct list_elem *e = list_begin(&current_thread->donors); e != list_end(&current_thread->donors); e = list_next(e)) {
 		struct thread *t = list_entry(e, struct thread, donor_elem);
 		if (t->waiting_lock == lock) {// thread가 기다리는 lock이 release되면 donor list에서 제거
@@ -262,13 +270,6 @@ lock_release (struct lock *lock) {
 
 	// update the holder thread's priority of the lock
 	thread_update_priority ();
-
-
-	if(thread_mlfqs){
-		lock->holder = NULL;
-		sema_up (&lock->semaphore);
-		return;
-	}
 	
 	lock->holder = NULL;
 	sema_up (&lock->semaphore);
