@@ -124,8 +124,7 @@ thread_init (void) {
 	list_init (&mlfqs_list);
 	list_init (&destruction_req);
 
-	/* Lab #1 - 이곳에서 global을 init하고 있으니 global_tick도 여기서 init할 수 있을 것.
-	어차피 main에서 thread_init부터 선언하고 가니까*/
+	/* Lab #1 - 이곳에서 다른 global들도 init됨. -> global_tick도 여기서 init*/
 
 	global_tick = INT64_MAX;
 
@@ -357,7 +356,7 @@ thread_wake(int64_t tick) {
 
 	/*list 변수 사용*/
 	struct list_elem *element_from_sleep_list;
-	/*슬립 리스트의 요소들 하나씩 사용할 것임.*/
+	/*슬립 리스트의 요소 처음 것 take.*/
 	element_from_sleep_list = list_begin(&sleep_list);
 
 	/*리스트의 끝까지 원소 하나하나 체크.
@@ -365,14 +364,15 @@ thread_wake(int64_t tick) {
 	while (element_from_sleep_list != list_end(&sleep_list)) {
 		struct thread *cur = list_entry(element_from_sleep_list, struct thread, elem);
 
+		//해당 파트에서는 cur의 local_tick이 제시된 tick보다 작거나 같으면
 		if (cur->local_tick <= tick) {
+			//해당 리스트에서 제거.
 			element_from_sleep_list = list_remove(&cur->elem);
 			thread_unblock(cur);
 		}
 		else {
 			/* wakeup하지 않아도 되는 쓰레드 만날 경우 : global tick update 해주고, break */
 			//element_from_sleep_list = list_next(element_from_sleep_list);
-
 			if (cur->local_tick < global_tick) {
 				global_tick = cur->local_tick;
 			}
@@ -398,7 +398,7 @@ thread_try_preempt (void) {
 }
 
 
-/* Lab #1 - global tick 가져오기. -> timer.c file에서 이 변수 사용하려니 안 되는 것 같다.*/
+/* Lab #1 - global tick 가져오기..*/
 int64_t
 get_global_tick (void) {
 	return global_tick;
@@ -478,6 +478,7 @@ thread_yield (void) {
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) {
+	//mlfqs는 priority 사용법이 다르기에 바로 나가준다.
 	if (thread_mlfqs) {
 		return;
 	}
@@ -503,19 +504,23 @@ thread_get_priority (void) {
 /* Lab 1 - advanced scheduler - priority calculation*/
 void
 advanced_priority_calculation (struct thread *t) {
+	//항상 필요한 idle check.
 	if (t == idle_thread) {
 		return;
 	}
+	//계산. nice는 int, but recent_cpu가 float이기에 값 맞춰주기.
 	t->priority = ((63 - t->nice*2)*(1<<14) + t->recent_cpu /(-4)) / (1<<14);
 }
 
 /* Lab 1 - advanced scheduler - recent_cpu calculation*/
 void
 advanced_recent_cpu_calculation (struct thread *t) {
+	//idle check
 	if (t == idle_thread) {
 		return;
 	}
 
+	//복잡한 계산식.
 	int L_a = load_avg*2;
 	t->recent_cpu = ((int64_t)( ((int64_t)(L_a)) * (1<<14) / (L_a+(1<<14)) ) ) * (t->recent_cpu)/(1<<14) + (t->nice)*(1<<14);
 }
@@ -539,7 +544,9 @@ advanced_load_avg_calculation (void) {
 /* Lab 1 - advanced scheduler - recent_cpu increase*/
 void
 advanced_recent_cpu_increase (void) {
+	//idle check -> if it isn't
 	if (thread_current() != idle_thread) {
+		//current thread의 recent_cpu 1 증가 (float표현)
 		thread_current()->recent_cpu += (1<<14);
 	}
 }
@@ -550,8 +557,11 @@ advanced_recent_cpu_update (void) {
 	struct list_elem *e;
 	struct thread *t;
 
+	//list 시작부에서 끝까지 체크.
 	for (e = list_begin(&mlfqs_list); e != list_end(&mlfqs_list); e = list_next(e)) {
+		//list_entry 매크로를 사용해서 mlfqs_elem에서 해당하는 thread를 가져온다.
 		t = list_entry(e, struct thread, mlfqs_elem);
+		//해당 값에 대해 recent_cpu를 계산한다.
 		advanced_recent_cpu_calculation(t);
 	}
 }
@@ -562,8 +572,11 @@ advanced_priority_update (void) {
 	struct list_elem *e;
 	struct thread *t;
 
+	//mlfq 리스트의 인스턴스들을 처음부터 끝까지 실행시킨다.
 	for (e = list_begin(&mlfqs_list); e != list_end(&mlfqs_list); e = list_next(e)) {
+		// list_entry 매크로를 사용해서 mlfqs_elem에서 해당하는 thread를 가져온다.
 		t = list_entry(e, struct thread, mlfqs_elem);
+		//해당 값에 대해 priority를 계산한다.
 		advanced_priority_calculation(t);
 	}
 }
@@ -646,6 +659,7 @@ thread_get_nice (void) {
 	//인터럽트 해제
 	intr_set_level(old_level);
 
+	//int형 리턴.
 	return take_nice;
 }
 
@@ -655,7 +669,7 @@ thread_get_load_avg (void) {
 	//인터럽트 막기
 	enum intr_level old_level = intr_disable();
 
-	//load_avg 가져와서 100 곱하기.
+	//load_avg 가져와서 100 곱하기. (실질적 float형)
 	int load_avg_mul100 = load_avg * 100;
 
 	//float값 int로 변환.
@@ -669,6 +683,7 @@ thread_get_load_avg (void) {
 	//인터럽트 해제
 	intr_set_level(old_level);
 
+	//int형 리턴
 	return load_avg_mul100;
 }
 
@@ -678,7 +693,7 @@ thread_get_recent_cpu (void) {
 	//인터럽트 막기
 	enum intr_level old_level = intr_disable();
 
-	//현재 쓰레드 recent_cpu 가져와서 100 곱하기.
+	//현재 쓰레드 recent_cpu 가져와서 100 곱하기. (실질적 float형)
 	int recent_cpu_mul100 = (thread_current()->recent_cpu)*100;
 
 	//recent_cpu 값은 float --> int로 변환
@@ -692,6 +707,7 @@ thread_get_recent_cpu (void) {
 	//인터럽트 해제
 	intr_set_level(old_level);
 
+	//int형 리턴
 	return recent_cpu_mul100;
 }
 
@@ -761,6 +777,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	list_init(&(t->donors));
 	t->magic = THREAD_MAGIC;
 	
+	//초기값 설정하기
 	t->nice = 0;
 	t->recent_cpu = 0;
 }

@@ -136,8 +136,9 @@ timer_interrupt (struct intr_frame *args UNUSED) {
 
 	/* Lab #1 - advanced 구현에 사용*/
 	if(thread_mlfqs){
+		//현재 실행중인 쓰레드의 recent_cpu 값을 1 증가.
 		advanced_recent_cpu_increase();
-
+		//tick이 4 지날때마다 priority 계산을 돌려준다.
 		if(ticks % 4 == 0){
 			advanced_priority_update();
 		}
@@ -149,12 +150,8 @@ timer_interrupt (struct intr_frame *args UNUSED) {
 			advanced_recent_cpu_update();
 		}
 	}
-
-
-	if(get_global_tick() <= ticks){
-		thread_wake(ticks);
-	}
-
+	
+	thread_wake(ticks);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
