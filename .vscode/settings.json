@@ -1,0 +1,12 @@
+{
+  "files.associations": {
+    "*.py": "python",
+    "thread.h": "c",
+    "tests.h": "c",
+    "init.h": "c",
+    "thread": "c",
+    "process.h": "c",
+    "io.h": "c",
+    "console.h": "c"
+  }
+}
