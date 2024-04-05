@@ -441,6 +441,37 @@ load (const char *file_name, struct intr_frame *if_) {
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
 
+	// Place the words at the top of the stack. Order doesn't matter, because they will be referenced through pointers.
+	for (int i = argc - 1; i >= 0; i--) {
+		if_->rsp -= strlen(argv[i]) + 1; // +1 for null terminator
+
+		// Copy the string to the stack.
+		memcpy(if_->rsp, argv[i], strlen(argv[i]) + 1);
+		// Update the argv[i] to point to the string on the stack.
+		argv[i] = if_->rsp;
+	}
+
+	// Word-align the stack pointer, 스택 포인터를 8의 배수로 정렬
+	// e.g. 0x4747ffe8	word-align	0	uint8_t[]
+	if_->rsp = (void *) ((uintptr_t) if_->rsp & ~0xf);
+	
+	// Push the address of each string plus a null pointer sentinel, on the stack, in right-to-left order. These are the elements of argv.
+	// The null pointer sentinel ensures that argv[argc] is a null pointer, as required by the C standard. The order ensures that argv[0] is at the lowest virtual address. Word-aligned accesses are faster than unaligned accesses, so for best performance round the stack pointer down to a multiple of 8 before the first push.
+	if_->rsp -= sizeof(char*) * (argc + 1); // NULL sentinel을 고려하여 argc+1로 공간 크기를 할당
+	memcpy(if_->rsp, argv, sizeof(char*) * argc); // argv[0] ~ argv[argc-1] 복사
+	*(uintptr_t **)(if_->rsp + sizeof(char*) * argc) = NULL; // NULL sentinel, e.g. 0x4747ffe0	argv[4]	0	char *
+
+	// Point %rsi to argv (the address of argv[0]) and set %rdi to argc.
+	if_->R.rsi = (uintptr_t) if_->rsp; // type casting to uintptr_t
+	if_->R.rdi = argc;
+
+	// Finally, push a fake "return address": although the entry function will never return, its stack frame must have the same structure as any other.
+	if_->rsp -= sizeof (void *);
+	*(uintptr_t *) if_->rsp = 0;
+
+	// Free the memory allocated for the arguments.
+	free (argv);
+	palloc_free_page (fn_copy);
 	success = true;
 
 done:
