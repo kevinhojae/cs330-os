@@ -340,8 +340,27 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	process_activate (thread_current ());
 
+	// Make a copy of FILE_NAME to avoid modifying the original string.
+	char *fn_copy;
+	fn_copy = palloc_get_page (0);
+	if (fn_copy == NULL)
+		return TID_ERROR;
+	strlcpy (fn_copy, file_name, PGSIZE);
+
+	char *token, *save_ptr;
+	int argc = 0;
+	char **argv = malloc (sizeof (char *) * 128);
+
+	// Parse the file_name to get the arguments.
+	while ((token = strtok_r (fn_copy, " ", &save_ptr)) != NULL) {
+		argv[argc] = token;
+		argc++;
+		fn_copy = NULL;
+	}
+
 	/* Open executable file. */
-	file = filesys_open (file_name);
+	// file = filesys_open (file_name);
+	file = filesys_open (argv[0]);
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
 		goto done;
