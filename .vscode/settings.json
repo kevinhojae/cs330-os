@@ -7,6 +7,9 @@
     "thread": "c",
     "process.h": "c",
     "io.h": "c",
-    "console.h": "c"
+    "console.h": "c",
+    "lib.h": "c",
+    "vm.h": "c",
+    "timer.h": "c"
   }
 }
