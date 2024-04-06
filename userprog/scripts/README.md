@@ -22,3 +22,12 @@
     ```bash
     pintos --fs-disk filesys.dsk -p tests/userprog/open-normal:open-normal -p ../../tests/userprog/sample.txt:sample.txt -- -q -f run "open-normal"
     ```
+
+## Running make check
+1. `/userprog` 폴더로 이동
+2. 다음 명령어 실행
+    ```bash
+    bash scripts/check.sh
+    ```
+
+    실행하게 되면 알아서 make clean, make, cd build, make check를 실행한다.
