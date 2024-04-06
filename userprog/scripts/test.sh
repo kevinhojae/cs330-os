@@ -26,4 +26,5 @@ make
 
 # run pintos
 cd /root/cs330-os/userprog/build
-pintos --fs-disk=10 -p tests/userprog/${test}:${test} -- -q -f run ${command}
+# print to console
+pintos --fs-disk=10 -p tests/userprog/${test}:${test} -- -q -f run "${command}"
