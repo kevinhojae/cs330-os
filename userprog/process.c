@@ -205,10 +205,9 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	while (true) {
-		// TODO: remove and implement this function.
-		timer_sleep (TIMER_FREQ);	
-	}
+
+	// loop for long limited time
+	for (int i = 0; i < 1000000; i++) { }
     return -1;
 }
 
