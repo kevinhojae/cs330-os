@@ -99,6 +99,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			f->R.rax = open_handler ((const char *) arg1);
 			break;                   /* Open a file. */
 		case SYS_FILESIZE:
+			f->R.rax = filesize_handler (arg1);
 			break;               /* Obtain a file's size. */
 		case SYS_READ:
 			f->R.rax = read_handler (arg1, (void *) arg2, (unsigned) arg3);
@@ -235,6 +236,12 @@ open_handler (const char *file_name) {
 int
 filesize_handler (int fd) {
 	// TODO: implement kernel logic for filesize
+	struct file *file = get_file_from_fd_table (fd);
+	if (file == NULL) {
+		return -1; // file descriptor not found or file is not open
+	}
+
+	return file_length (file);
 }
 
 /**
