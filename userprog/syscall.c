@@ -67,10 +67,32 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_EXIT:
 			exit (arg1);
 			break;
+		case SYS_FORK:
+			break;                   /* Clone current process. */
+		case SYS_EXEC:
+			break;                   /* Switch current process. */
+		case SYS_WAIT:
+			break;                   /* Wait for a child process to die. */
+		case SYS_CREATE: 
+			break;                /* Create a file. */
+		case SYS_REMOVE:
+			break;                 /* Delete a file. */
+		case SYS_OPEN:
+			break;                   /* Open a file. */
+		case SYS_FILESIZE:
+			break;               /* Obtain a file's size. */
+		case SYS_READ:
+			break;                   /* Read from a file. */
 		// case for write
 		case SYS_WRITE:
 			return write (arg1, (void *) arg2, (unsigned) arg3);
 			break;
+		case SYS_SEEK:
+			break;                   /* Change position in a file. */
+		case SYS_TELL:
+			break;                   /* Report current position in a file. */
+		case SYS_CLOSE:
+			break;                  /* Close a file. */
 		default:
 			thread_exit ();
 			break;
