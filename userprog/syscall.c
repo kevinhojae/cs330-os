@@ -129,6 +129,7 @@ exit (int status) {
 	*/
 	struct thread *curr_thread = thread_current (); // 현재 쓰레드 받기
 	curr_thread-> exit_status = status; // 현재 쓰레드의 exit_status에 인수로 받은status 저장
+	printf("%s: exit(%d)\n", curr_thread->name, status); // 현재 쓰레드의 이름과 status 출력
 	thread_exit ();	// 현재 쓰레드 종료
 }
 
