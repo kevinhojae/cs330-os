@@ -59,13 +59,13 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	// 5. Return results to the calling process, either through the return value in f->RAX or through state changes in the process or system.
 	// If a system call is passed an invalid argument, acceptable options include returning an error value (for those calls that return a value), returning an undefined value, or terminating the process.
 	switch (syscall_number) {
-		// case for write
-		case SYS_WRITE:
-			return write (arg1, (void *) arg2, (unsigned) arg3);
-			break;
 		// syscall-nr is 0
 		case SYS_HALT:
 			halt ();
+			break;
+		// case for write
+		case SYS_WRITE:
+			return write (arg1, (void *) arg2, (unsigned) arg3);
 			break;
 		default:
 			thread_exit ();
