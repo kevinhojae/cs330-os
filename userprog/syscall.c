@@ -92,6 +92,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			f->R.rax = create_handler ((const char *) arg1, (unsigned) arg2);
 			break;
 		case SYS_REMOVE: 				/* Delete a file. */
+			f->R.rax = remove_handler ((const char *) arg1);
 			break;
 		case SYS_OPEN:  				/* Open a file. */
 			f->R.rax = open_handler ((const char *) arg1);
@@ -106,10 +107,13 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			f->R.rax = write_handler (arg1, (void *) arg2, (unsigned) arg3);
 			break;
 		case SYS_SEEK: 					/* Change position in a file. */
+			seek_handler (arg1, (unsigned) arg2);
 			break;
 		case SYS_TELL: 					/* Report current position in a file. */
+			f->R.rax = tell_handler (arg1);
 			break;
 		case SYS_CLOSE: 				/* Close a file. */
+			close_handler (arg1);
 			break;
 		default:
 			// thread_exit ();
@@ -197,6 +201,7 @@ create_handler (const char *file, unsigned initial_size) {
 bool
 remove_handler (const char *file) {
 	// TODO: implement kernel logic for remove
+	return filesys_remove(file);
 }
 
 /**
@@ -300,6 +305,13 @@ write_handler (int fd, const void *buffer, unsigned size) {
 void
 seek_handler (int fd, unsigned position) {
 	// TODO: implement kernel logic for seek
+
+	struct file *file = get_file_from_fd_table (fd);
+	if (file == NULL) {
+		return; // file descriptor not found or file is not open
+	}
+
+	file_seek (file, position);
 }
 
 /**
@@ -308,6 +320,12 @@ seek_handler (int fd, unsigned position) {
 unsigned
 tell_handler (int fd) {
 	// TODO: implement kernel logic for tell
+	struct file *file = get_file_from_fd_table (fd);
+	if (file == NULL) {
+		return -1; // file descriptor not found or file is not open
+	}
+
+	return file_tell (file);
 }
 
 /**
@@ -316,6 +334,7 @@ tell_handler (int fd) {
 void
 close_handler (int fd) {
 	// TODO: implement kernel logic for close
+	remove_file_descriptor_from_fd_table (fd);
 }
 
 /**
@@ -345,5 +364,19 @@ add_file_descriptor_to_fd_table (struct file *file) {
 	file_descriptor->file = file;
 	list_push_back (&curr_thread->fd_table, &file_descriptor->elem);
 	return file_descriptor->fd;
+}
+
+void
+remove_file_descriptor_from_fd_table (int fd) {
+	struct thread *curr_thread = thread_current ();
+	struct list_elem *e;
+	for (e = list_begin (&curr_thread->fd_table); e != list_end (&curr_thread->fd_table); e = list_next (e)) {
+		struct file_descriptor *file_descriptor = list_entry (e, struct file_descriptor, elem);
+		if (file_descriptor->fd == fd) {
+			list_remove (&file_descriptor->elem);
+			free (file_descriptor);
+			break;
+		}
+	}
 }
 
