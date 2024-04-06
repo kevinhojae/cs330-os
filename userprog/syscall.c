@@ -191,6 +191,9 @@ wait_handler (int pid) {
 bool
 create_handler (const char *file, unsigned initial_size) {
 	// TODO: implement kernel logic for create
+	if (file == NULL) { // file이 NULL이면 종료
+		exit_handler (-1);
+	}
 	return filesys_create(file, initial_size);
 }
 
