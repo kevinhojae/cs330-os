@@ -174,7 +174,24 @@ read (int fd, void *buffer, unsigned size) {
  */
 int
 write (int fd, const void *buffer, unsigned size) {
+	struct lock *file_lock;
 	// TODO: implement kernel logic for write
+
+	// write to console
+	if (fd == 1) {
+		putbuf (buffer, size);
+		return size;
+	}
+
+	// write to file
+	struct file *file = file_open (fd);
+	if (file != NULL) {
+		lock_acquire(&file_lock);
+		int bytes_written = file_write(file, buffer, size);
+		lock_release(&file_lock);
+		return bytes_written;
+	}
+	return -1; // file descriptor not found or file is not open
 }
 
 /**
