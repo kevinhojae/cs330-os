@@ -41,7 +41,32 @@ syscall_init (void) {
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
-	printf ("system call!\n");
+	// printf ("system call!\n");
+
+	// 1. Extract system call number and arguments from f->RAX and other registers.
+	// when the system call handler syscall_handler() gets control, the system call number is in the rax, and arguments are passed with the order %rdi, %rsi, %rdx, %r10, %r8, and %r9.
+	int syscall_number = f->R.rax;
+	int arg1 = f->R.rdi;
+	int arg2 = f->R.rsi;
+	int arg3 = f->R.rdx;
+	int arg4 = f->R.r10;
+	int arg5 = f->R.r8;
+	int arg6 = f->R.r9;
+
+	// 2. Switch based on system call number to handle different system calls.
+	// 3. For system calls involving user pointers, validate pointers before proceeding.
+	// 4. Perform the requested operation, which may involve interacting with the file system, process management, or memory management subsystems.
+	// 5. Return results to the calling process, either through the return value in f->RAX or through state changes in the process or system.
+	// If a system call is passed an invalid argument, acceptable options include returning an error value (for those calls that return a value), returning an undefined value, or terminating the process.
+	switch (syscall_number) {
+		// case for write
+		case SYS_WRITE:
+			return write (arg1, (void *) arg2, (unsigned) arg3);
+			break;
+		default:
+			break;
+	}
+
 	thread_exit ();
 }
 
