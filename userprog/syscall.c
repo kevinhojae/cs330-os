@@ -76,6 +76,13 @@ syscall_handler (struct intr_frame *f UNUSED) {
 void
 halt (void) {
 	// TODO: implement kernel logic for halt
+	/*
+	// syscall-nr is 0
+	case SYS_HALT:
+		halt ();
+		break;
+	*/
+	power_off ();
 }
 
 /**
