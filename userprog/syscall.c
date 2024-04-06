@@ -11,6 +11,21 @@
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
+static void halt_handler (void);
+static void exit_handler (int status);
+static int fork_handler (const char *thread_name);
+static int exec_handler (const char *cmd_line);
+static int wait_handler (int pid);
+static bool create_handler (const char *file, unsigned initial_size);
+static bool remove_handler (const char *file);
+static int open_handler (const char *file_name);
+static int filesize_handler (int fd);
+static int read_handler (int fd, void *buffer, unsigned size);
+static int write_handler (int fd, const void *buffer, unsigned size);
+static void seek_handler (int fd, unsigned position);
+static unsigned tell_handler (int fd);
+static void close_handler (int fd);
+
 /* System call.
  *
  * Previously system call services was handled by the interrupt handler
@@ -61,11 +76,11 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	switch (syscall_number) {
 		// syscall-nr is 0
 		case SYS_HALT:
-			halt ();
+			halt_handler ();
 			break;
 		// syscall-nr is 1
 		case SYS_EXIT:
-			exit (arg1);
+			exit_handler (arg1);
 			break;
 		case SYS_FORK:
 			break;                   /* Clone current process. */
@@ -74,18 +89,21 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_WAIT:
 			break;                   /* Wait for a child process to die. */
 		case SYS_CREATE: 
+			f->R.rax = create_handler ((const char *) arg1, (unsigned) arg2);
 			break;                /* Create a file. */
 		case SYS_REMOVE:
 			break;                 /* Delete a file. */
 		case SYS_OPEN:
+			f->R.rax = open_handler ((const char *) arg1);
 			break;                   /* Open a file. */
 		case SYS_FILESIZE:
 			break;               /* Obtain a file's size. */
 		case SYS_READ:
+			f->R.rax = read_handler (arg1, (void *) arg2, (unsigned) arg3);
 			break;                   /* Read from a file. */
 		// case for write
 		case SYS_WRITE:
-			return write (arg1, (void *) arg2, (unsigned) arg3);
+			f->R.rax = write_handler (arg1, (void *) arg2, (unsigned) arg3);
 			break;
 		case SYS_SEEK:
 			break;                   /* Change position in a file. */
@@ -103,7 +121,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
  * Terminates Pintos by calling power_off() (declared in src/include/threads/init.h). This should be seldom used, because you lose some information about possible deadlock situations, etc.
  */
 void
-halt (void) {
+halt_handler (void) {
 	// TODO: implement kernel logic for halt
 	power_off ();
 }
@@ -113,7 +131,7 @@ halt (void) {
  * Conventionally, a status of 0 indicates success and nonzero values indicate errors.
  */
 void
-exit (int status) {
+exit_handler (int status) {
 	// TODO: implement kernel logic for exit
 	/*
 	// syscall-nr is 1
@@ -134,7 +152,7 @@ exit (int status) {
  * The template utilizes the pml4_for_each() in threads/mmu.c to copy entire user memory space, including corresponding pagetable structures, but you need to fill missing parts of passed pte_for_each_func (See virtual address).
  */
 int
-fork (const char *thread_name) {
+fork_handler (const char *thread_name) {
 	// TODO: implement kernel logic for fork
 }
 
@@ -144,7 +162,7 @@ fork (const char *thread_name) {
  * This function does not change the name of the thread that called exec. Please note that file descriptors remain open across an exec call.
  */
 int
-exec (const char *cmd_line) {
+exec_handler (const char *cmd_line) {
 	// TODO: implement kernel logic for exec
 }
 
@@ -157,7 +175,7 @@ exec (const char *cmd_line) {
  * 	- The process that calls wait has already called wait on pid. That is, a process may wait for any given child at most once.
  */
 int
-wait (int pid) {
+wait_handler (int pid) {
 	// TODO: implement kernel logic for wait
 }
 
@@ -166,8 +184,9 @@ wait (int pid) {
  * Creating a new file does not open it: opening the new file is a separate operation which would require a open system call.
  */
 bool
-create (const char *file, unsigned initial_size) {
+create_handler (const char *file, unsigned initial_size) {
 	// TODO: implement kernel logic for create
+	return filesys_create(file, initial_size);
 }
 
 /**
@@ -175,7 +194,7 @@ create (const char *file, unsigned initial_size) {
  * A file may be removed regardless of whether it is open or closed, and removing an open file does not close it. See Removing an Open File in FAQ for details.
  */
 bool
-remove (const char *file) {
+remove_handler (const char *file) {
 	// TODO: implement kernel logic for remove
 }
 
@@ -186,7 +205,7 @@ remove (const char *file) {
  * Different file descriptors for a single file are closed independently in separate calls to close and they do not share a file position. You should follow the linux scheme, which returns integer starting from zero, to do the extra.
  */
 int
-open (const char *file) {
+open_handler (const char *file_name) {
 	// TODO: implement kernel logic for open
 }
 
@@ -194,7 +213,7 @@ open (const char *file) {
  * Returns the size, in bytes, of the file open as fd.
  */
 int
-filesize (int fd) {
+filesize_handler (int fd) {
 	// TODO: implement kernel logic for filesize
 }
 
@@ -203,7 +222,7 @@ filesize (int fd) {
  * fd 0 reads from the keyboard using input_getc().
  */
 int
-read (int fd, void *buffer, unsigned size) {
+read_handler (int fd, void *buffer, unsigned size) {
 	// TODO: implement kernel logic for read
 }
 
@@ -213,7 +232,7 @@ read (int fd, void *buffer, unsigned size) {
  * fd 1 writes to the console. Your code to write to the console should write all of buffer in one call to putbuf(), at least as long as size is not bigger than a few hundred bytes (It is reasonable to break up larger buffers). Otherwise, lines of text output by different processes may end up interleaved on the console, confusing both human readers and our grading scripts.
  */
 int
-write (int fd, const void *buffer, unsigned size) {
+write_handler (int fd, const void *buffer, unsigned size) {
 	struct lock *file_lock;
 	// TODO: implement kernel logic for write
 
@@ -238,7 +257,7 @@ write (int fd, const void *buffer, unsigned size) {
  * Changes the next byte to be read or written in open file fd to position, expressed in bytes from the beginning of the file (Thus, a position of 0 is the file's start). A seek past the current end of a file is not an error. A later read obtains 0 bytes, indicating end of file. A later write extends the file, filling any unwritten gap with zeros. (However, in Pintos files have a fixed length until project 4 is complete, so writes past end of file will return an error.) These semantics are implemented in the file system and do not require any special effort in system call implementation.
  */
 void
-seek (int fd, unsigned position) {
+seek_handler (int fd, unsigned position) {
 	// TODO: implement kernel logic for seek
 }
 
@@ -246,7 +265,7 @@ seek (int fd, unsigned position) {
  * Returns the position of the next byte to be read or written in open file fd, expressed in bytes from the beginning of the file.
  */
 unsigned
-tell (int fd) {
+tell_handler (int fd) {
 	// TODO: implement kernel logic for tell
 }
 
@@ -254,6 +273,6 @@ tell (int fd) {
  * Closes file descriptor fd. Exiting or terminating a process implicitly closes all its open file descriptors, as if by calling this function for each one.
  */
 void
-close (int fd) {
+close_handler (int fd) {
 	// TODO: implement kernel logic for close
 }
