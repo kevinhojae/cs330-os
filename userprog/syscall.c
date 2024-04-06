@@ -25,6 +25,7 @@ static int write_handler (int fd, const void *buffer, unsigned size);
 static void seek_handler (int fd, unsigned position);
 static unsigned tell_handler (int fd);
 static void close_handler (int fd);
+static struct file *get_file_from_fd_table_by_fd (int fd);
 
 /* System call.
  *
@@ -225,6 +226,23 @@ filesize_handler (int fd) {
 int
 read_handler (int fd, void *buffer, unsigned size) {
 	// TODO: implement kernel logic for read
+
+	if (fd == 0) {
+		// read from keyboard
+		unsigned i;
+		for (i = 0; i < size; i++) {
+			((char *) buffer)[i] = input_getc ();
+		}
+		return size;
+	}
+
+	// find file from file descriptor table
+	struct file *file = get_file_from_fd_table_by_fd (fd);
+	if (file == NULL) {
+		return -1; // file descriptor not found or file is not open
+	}
+
+	return file_read (file, buffer, size);
 }
 
 /**
@@ -276,4 +294,20 @@ tell_handler (int fd) {
 void
 close_handler (int fd) {
 	// TODO: implement kernel logic for close
+}
+
+/**
+ * Returns the file associated with the file descriptor fd from the file descriptor table of the current thread.
+ */
+struct file *
+get_file_from_fd_table_by_fd (int fd) {
+	struct thread *curr_thread = thread_current ();
+	struct list_elem *e;
+	for (e = list_begin (&curr_thread->fd_table); e != list_end (&curr_thread->fd_table); e = list_next (e)) {
+		struct file_descriptor *file_descriptor = list_entry (e, struct file_descriptor, elem);
+		if (file_descriptor->fd == fd) {
+			return file_descriptor->file;
+		}
+	}
+	return NULL;
 }
