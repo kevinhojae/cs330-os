@@ -780,6 +780,10 @@ init_thread (struct thread *t, const char *name, int priority) {
 	//초기값 설정하기
 	t->nice = 0;
 	t->recent_cpu = 0;
+
+	/* Set up the file descriptor table for the running thread. */
+	list_init (&t->fd_table); // Initialize the file descriptor table.
+	t->fd_count = 2; // 0: STDIN_FILENO, 1: STDOUT_FILENO
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
