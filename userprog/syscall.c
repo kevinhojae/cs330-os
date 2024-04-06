@@ -26,6 +26,7 @@ static void seek_handler (int fd, unsigned position);
 static unsigned tell_handler (int fd);
 static void close_handler (int fd);
 static struct file *get_file_from_fd_table_by_fd (int fd);
+static int add_file_descriptor_to_fd_table (struct file *file);
 
 /* System call.
  *
@@ -209,6 +210,23 @@ remove_handler (const char *file) {
 int
 open_handler (const char *file_name) {
 	// TODO: implement kernel logic for open
+
+	// open file from file system
+	struct file *file = filesys_open (file_name);
+
+	// if file is not found, return -1
+	if (file == NULL) {
+		return -1;
+	}
+
+	// add file to file descriptor table of the current thread
+	struct thread *curr_thread = thread_current ();
+	int fd = add_file_descriptor_to_fd_table (file);
+	if (fd == -1) {
+		return -1;
+	}
+
+	return fd;
 }
 
 /**
@@ -311,3 +329,17 @@ get_file_from_fd_table_by_fd (int fd) {
 	}
 	return NULL;
 }
+
+int
+add_file_descriptor_to_fd_table (struct file *file) {
+	struct thread *curr_thread = thread_current ();
+	struct file_descriptor *file_descriptor = malloc (sizeof (struct file_descriptor));
+	if (file_descriptor == NULL) {
+		return -1;
+	}
+	file_descriptor->fd = curr_thread->fd_count++;
+	file_descriptor->file = file;
+	list_push_back (&curr_thread->fd_table, &file_descriptor->elem);
+	return file_descriptor->fd;
+}
+
