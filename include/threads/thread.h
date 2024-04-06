@@ -113,7 +113,8 @@ struct thread {
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
 	int exit_status;                    /* syscall - Exit status */
-	struct list file_descriptor_table;  /* File descriptor table */
+	struct list fd_table;  				/* File descriptor table */
+	int fd_count;  						/* File descriptor count */
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
@@ -123,6 +124,12 @@ struct thread {
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
 	unsigned magic;                     /* Detects stack overflow. */
+};
+
+struct file_descriptor {
+	int fd;
+	struct file *file;
+	struct list_elem elem;
 };
 
 /* If false (default), use round-robin scheduler.
