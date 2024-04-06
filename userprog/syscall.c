@@ -27,6 +27,8 @@ static unsigned tell_handler (int fd);
 static void close_handler (int fd);
 static struct file *get_file_from_fd_table (int fd);
 static int add_file_descriptor_to_fd_table (struct file *file);
+static void validate_address (void *addr);
+
 
 /* System call.
  *
@@ -191,6 +193,8 @@ wait_handler (int pid) {
 bool
 create_handler (const char *file, unsigned initial_size) {
 	// TODO: implement kernel logic for create
+	validate_address (file);
+
 	if (file == NULL) { // file이 NULL이면 종료
 		exit_handler (-1);
 	}
@@ -216,6 +220,7 @@ remove_handler (const char *file) {
 int
 open_handler (const char *file_name) {
 	// TODO: implement kernel logic for open
+	validate_address (file_name);
 
 	// open file from file system
 	struct file *file = filesys_open (file_name);
@@ -256,6 +261,7 @@ filesize_handler (int fd) {
 int
 read_handler (int fd, void *buffer, unsigned size) {
 	// TODO: implement kernel logic for read
+	validate_address (buffer);
 
 	if (fd == 0) {
 		// read from keyboard
@@ -285,14 +291,17 @@ write_handler (int fd, const void *buffer, unsigned size) {
 	struct lock *file_lock;
 	// TODO: implement kernel logic for write
 
+	validate_address (buffer);
+
 	// write to console
 	if (fd == 1) {
 		putbuf (buffer, size);
 		return size;
 	}
 
-	// write to file
-	struct file *file = file_open (fd);
+	// TODO: write to file
+	struct file *file = get_file_from_fd_table (fd);
+
 	if (file != NULL) {
 		lock_acquire(&file_lock);
 		int bytes_written = file_write(file, buffer, size);
@@ -372,14 +381,11 @@ add_file_descriptor_to_fd_table (struct file *file) {
 void
 remove_file_descriptor_from_fd_table (int fd) {
 	struct thread *curr_thread = thread_current ();
-	struct list_elem *e;
-	for (e = list_begin (&curr_thread->fd_table); e != list_end (&curr_thread->fd_table); e = list_next (e)) {
-		struct file_descriptor *file_descriptor = list_entry (e, struct file_descriptor, elem);
-		if (file_descriptor->fd == fd) {
-			list_remove (&file_descriptor->elem);
-			free (file_descriptor);
-			break;
-		}
+
+void
+validate_address (void *addr) {
+	if (is_kernel_vaddr (addr) || pml4_get_page (thread_current ()->pml4, addr) == NULL) {
+		exit_handler (-1);
 	}
 }
 
