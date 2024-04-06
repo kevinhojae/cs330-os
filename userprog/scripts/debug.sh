@@ -18,7 +18,11 @@ while getopts ":t:c:" opt; do
   esac
 done
 
-# cd to build
-cd /root/cs330-os/userprog/build
+# rebuild
+cd /root/cs330-os/userprog
+make clean
+make
+
 # run and execute vscode gdb debugger for pintos
+cd /root/cs330-os/userprog/build
 pintos --gdb --fs-disk=10 -p tests/userprog/${test}:${test} -- -q -f run ${command}
