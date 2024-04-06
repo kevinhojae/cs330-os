@@ -112,7 +112,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_CLOSE:
 			break;                  /* Close a file. */
 		default:
-			thread_exit ();
+			// thread_exit ();
+			exit_handler (-1);
 			break;
 	}
 }
