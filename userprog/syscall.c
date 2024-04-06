@@ -25,7 +25,7 @@ static int write_handler (int fd, const void *buffer, unsigned size);
 static void seek_handler (int fd, unsigned position);
 static unsigned tell_handler (int fd);
 static void close_handler (int fd);
-static struct file *get_file_from_fd_table_by_fd (int fd);
+static struct file *get_file_from_fd_table (int fd);
 static int add_file_descriptor_to_fd_table (struct file *file);
 
 /* System call.
@@ -255,7 +255,7 @@ read_handler (int fd, void *buffer, unsigned size) {
 	}
 
 	// find file from file descriptor table
-	struct file *file = get_file_from_fd_table_by_fd (fd);
+	struct file *file = get_file_from_fd_table (fd);
 	if (file == NULL) {
 		return -1; // file descriptor not found or file is not open
 	}
@@ -318,7 +318,7 @@ close_handler (int fd) {
  * Returns the file associated with the file descriptor fd from the file descriptor table of the current thread.
  */
 struct file *
-get_file_from_fd_table_by_fd (int fd) {
+get_file_from_fd_table (int fd) {
 	struct thread *curr_thread = thread_current ();
 	struct list_elem *e;
 	for (e = list_begin (&curr_thread->fd_table); e != list_end (&curr_thread->fd_table); e = list_next (e)) {
