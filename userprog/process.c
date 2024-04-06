@@ -209,13 +209,13 @@ process_wait (tid_t child_tid UNUSED) {
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
 
-	// for make test, finite loop
-	// for (int i = 0; i < 1000000; i++) { }
+	// for make test, wait for 5 seconds
+	timer_sleep (5 * TIMER_FREQ);
 
 	// for debug, infinite loop
-	while (1) { 
-		timer_sleep (TIMER_FREQ);
-	}
+	// while (1) { 
+	// 	timer_sleep (TIMER_FREQ);
+	// }
     return -1;
 }
 
