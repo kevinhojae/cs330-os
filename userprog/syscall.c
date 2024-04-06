@@ -63,6 +63,10 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_HALT:
 			halt ();
 			break;
+		// syscall-nr is 1
+		case SYS_EXIT:
+			exit (arg1);
+			break;
 		// case for write
 		case SYS_WRITE:
 			return write (arg1, (void *) arg2, (unsigned) arg3);
@@ -95,6 +99,15 @@ halt (void) {
 void
 exit (int status) {
 	// TODO: implement kernel logic for exit
+	/*
+	// syscall-nr is 1
+	case SYS_EXIT:
+		exit (arg1);
+		break;
+	*/
+	struct thread *curr_thread = thread_current (); // 현재 쓰레드 받기
+	curr_thread-> exit_status = status; // 현재 쓰레드의 exit_status에 인수로 받은status 저장
+	thread_exit ();	// 현재 쓰레드 종료
 }
 
 /**
