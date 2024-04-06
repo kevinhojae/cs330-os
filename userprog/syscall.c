@@ -28,6 +28,7 @@ static void close_handler (int fd);
 static struct file *get_file_from_fd_table (int fd);
 static int add_file_descriptor_to_fd_table (struct file *file);
 static void validate_address (void *addr);
+static void remove_file_descriptor_from_fd_table (int fd);
 
 
 /* System call.
@@ -381,6 +382,17 @@ add_file_descriptor_to_fd_table (struct file *file) {
 void
 remove_file_descriptor_from_fd_table (int fd) {
 	struct thread *curr_thread = thread_current ();
+	struct list_elem *e;
+	for (e = list_begin (&curr_thread->fd_table); e != list_end (&curr_thread->fd_table); e = list_next (e)) {
+		struct file_descriptor *file_descriptor = list_entry (e, struct file_descriptor, elem);
+		if (file_descriptor->fd == fd) {
+			file_close (file_descriptor->file);
+			list_remove (&file_descriptor->elem);
+			free (file_descriptor);
+			return;
+		}
+	}
+}
 
 void
 validate_address (void *addr) {

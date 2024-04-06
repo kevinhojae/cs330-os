@@ -210,7 +210,7 @@ process_wait (tid_t child_tid UNUSED) {
 	 * XXX:       implementing the process_wait. */
 
 	// for make test, wait for 5 seconds
-	timer_sleep (5 * TIMER_FREQ);
+	timer_sleep (2 * TIMER_FREQ);
 
 	// for debug, infinite loop
 	// while (1) { 
