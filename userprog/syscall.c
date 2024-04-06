@@ -76,44 +76,41 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	// 5. Return results to the calling process, either through the return value in f->RAX or through state changes in the process or system.
 	// If a system call is passed an invalid argument, acceptable options include returning an error value (for those calls that return a value), returning an undefined value, or terminating the process.
 	switch (syscall_number) {
-		// syscall-nr is 0
-		case SYS_HALT:
+		case SYS_HALT:  		   		/* Halt the operating system. */
 			halt_handler ();
 			break;
-		// syscall-nr is 1
-		case SYS_EXIT:
+		case SYS_EXIT:  		 		/* Terminate this process. */
 			exit_handler (arg1);
 			break;
-		case SYS_FORK:
-			break;                   /* Clone current process. */
-		case SYS_EXEC:
-			break;                   /* Switch current process. */
-		case SYS_WAIT:
-			break;                   /* Wait for a child process to die. */
-		case SYS_CREATE: 
+		case SYS_FORK: 		 			/* Clone current process. */
+			break;                   
+		case SYS_EXEC: 		 			/* Start another process. */
+			break;
+		case SYS_WAIT: 		 			/* Wait for a child process to die. */
+			break;
+		case SYS_CREATE:  				/* Create a file. */
 			f->R.rax = create_handler ((const char *) arg1, (unsigned) arg2);
-			break;                /* Create a file. */
-		case SYS_REMOVE:
-			break;                 /* Delete a file. */
-		case SYS_OPEN:
+			break;
+		case SYS_REMOVE: 				/* Delete a file. */
+			break;
+		case SYS_OPEN:  				/* Open a file. */
 			f->R.rax = open_handler ((const char *) arg1);
-			break;                   /* Open a file. */
-		case SYS_FILESIZE:
+			break;
+		case SYS_FILESIZE: 				/* Obtain a file's size. */
 			f->R.rax = filesize_handler (arg1);
-			break;               /* Obtain a file's size. */
-		case SYS_READ:
+			break;
+		case SYS_READ: 					/* Read from a file. */
 			f->R.rax = read_handler (arg1, (void *) arg2, (unsigned) arg3);
-			break;                   /* Read from a file. */
-		// case for write
-		case SYS_WRITE:
+			break;
+		case SYS_WRITE: 				/* Write to a file. */
 			f->R.rax = write_handler (arg1, (void *) arg2, (unsigned) arg3);
 			break;
-		case SYS_SEEK:
-			break;                   /* Change position in a file. */
-		case SYS_TELL:
-			break;                   /* Report current position in a file. */
-		case SYS_CLOSE:
-			break;                  /* Close a file. */
+		case SYS_SEEK: 					/* Change position in a file. */
+			break;
+		case SYS_TELL: 					/* Report current position in a file. */
+			break;
+		case SYS_CLOSE: 				/* Close a file. */
+			break;
 		default:
 			// thread_exit ();
 			exit_handler (-1);
