@@ -373,7 +373,8 @@ add_file_descriptor_to_fd_table (struct file *file) {
 	if (file_descriptor == NULL) {
 		return -1;
 	}
-	file_descriptor->fd = curr_thread->fd_count++;
+	file_descriptor->fd = curr_thread->fd_count;
+	curr_thread->fd_count++;
 	file_descriptor->file = file;
 	list_push_back (&curr_thread->fd_table, &file_descriptor->elem);
 	return file_descriptor->fd;

@@ -242,6 +242,17 @@ thread_create (const char *name, int priority,
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
 
+	/* File Descriptor 초기화 */
+	t->fd_count = 2;
+	struct file_descriptor *fd_stdin = malloc(sizeof(struct file_descriptor)); // stdin
+	struct file_descriptor *fd_stdout = malloc(sizeof(struct file_descriptor)); // stdout
+	fd_stdin->fd = 0;
+	fd_stdin->file = NULL;
+	fd_stdout->fd = 1;
+	fd_stdout->file = NULL;
+	list_push_back(&t->fd_table, &fd_stdin->elem);
+	list_push_back(&t->fd_table, &fd_stdout->elem);
+
 	/* Add to run queue. */
 	thread_unblock (t); // NOTE: unblock the new thread to add it to the ready list.
 	thread_try_preempt ();
