@@ -63,6 +63,10 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_WRITE:
 			return write (arg1, (void *) arg2, (unsigned) arg3);
 			break;
+		// syscall-nr is 0
+		case SYS_HALT:
+			halt ();
+			break;
 		default:
 			break;
 	}
