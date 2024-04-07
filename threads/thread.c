@@ -252,7 +252,10 @@ thread_create (const char *name, int priority,
 	fd_stdout->file = NULL;
 	list_push_back(&t->fd_table, &fd_stdin->elem);
 	list_push_back(&t->fd_table, &fd_stdout->elem);
-
+#ifdef USERPROG
+	t->parent = thread_current();
+	list_push_back(&thread_current()->child_list, &t->child_elem);
+#endif
 	/* Add to run queue. */
 	thread_unblock (t); // NOTE: unblock the new thread to add it to the ready list.
 	thread_try_preempt ();
@@ -795,6 +798,10 @@ init_thread (struct thread *t, const char *name, int priority) {
 	/* Set up the file descriptor table for the running thread. */
 	list_init (&t->fd_table); // Initialize the file descriptor table.
 	t->fd_count = 2; // 0: STDIN_FILENO, 1: STDOUT_FILENO
+
+#ifdef USERPROG
+	list_init(&t->child_list);
+#endif
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

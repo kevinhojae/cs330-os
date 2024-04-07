@@ -115,6 +115,10 @@ struct thread {
 	int exit_status;                    /* syscall - Exit status */
 	struct list fd_table;  				/* File descriptor table */
 	int fd_count;  						/* File descriptor count */
+	struct intr_frame *parent_if;       /* Parent's intr_frame */
+	struct list child_list; 		   /* List of child threads */
+	struct list_elem child_elem; 	   /* List element for child threads */
+	struct thread *parent; 			  /* Parent thread */
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
