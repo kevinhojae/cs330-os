@@ -12,6 +12,7 @@
 #include "devices/input.h"
 #include "threads/synch.h"
 #include "threads/init.h"
+#include "userprog/process.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -31,9 +32,9 @@ static void seek_handler (int fd, unsigned position);
 static unsigned tell_handler (int fd);
 static void close_handler (int fd);
 static struct file *get_file_from_fd_table (int fd);
-static int add_file_descriptor_to_fd_table (struct file *file);
+static int add_file_to_fd_table (struct file *file);
 static void validate_address (void *addr);
-static void remove_file_descriptor_from_fd_table (int fd);
+static void remove_file_from_fd_table (int fd);
 
 struct lock file_lock;
 
@@ -95,6 +96,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			exit_handler (arg1);
 			break;
 		case SYS_FORK: 		 			/* Clone current process. */
+			f->R.rax = fork_handler ((const char *) arg1);
 			break;                   
 		case SYS_EXEC: 		 			/* Start another process. */
 			break;
@@ -165,8 +167,10 @@ exit_handler (int status) {
 
 /**
  * Create new process which is the clone of current process with the name THREAD_NAME.
- * You don't need to clone the value of the registers except %RBX, %RSP, %RBP, and %R12 - %R15, which are callee-saved registers. Must return pid of the child process, otherwise shouldn't be a valid pid. 
- * In child process, the return value should be 0. The child should have DUPLICATED resources including file descriptor and virtual memory space. Parent process should never return from the fork until it knows whether the child process successfully cloned. That is, if the child process fail to duplicate the resource, the fork () call of parent should return the TID_ERROR.
+ * You don't need to clone the value of the registers except %RBX, %RSP, %RBP, and %R12 - %R15, which are callee-saved registers.
+ * Must return pid of the child process, otherwise shouldn't be a valid pid. 
+ * In child process, the return value should be 0. The child should have DUPLICATED resources including file descriptor and virtual memory space.
+ * Parent process should never return from the fork until it knows whether the child process successfully cloned. That is, if the child process fail to duplicate the resource, the fork () call of parent should return the TID_ERROR.
  * The template utilizes the pml4_for_each() in threads/mmu.c to copy entire user memory space, including corresponding pagetable structures, but you need to fill missing parts of passed pte_for_each_func (See virtual address).
  */
 int
@@ -174,21 +178,21 @@ fork_handler (const char *thread_name) {
 	// TODO: implement kernel logic for fork
 	validate_address (thread_name);
 
-	int child_pid = process_fork(thread_name, &thread_current()->parent_if);
+	int child_pid = process_fork (thread_name, &thread_current()->parent_if);
 
 	if(child_pid == TID_ERROR){
 		return TID_ERROR;
 	}
 
-	struct thread *child_one = NULL;
+	// struct thread *child_one = NULL;
 	
-	for(struct list_elem *e = list_begin(&thread_current()->child_list); e != list_end(&thread_current()->child_list); e = list_next(e)){
-		struct thread *child = list_entry(e, struct thread, child_elem);
-		if(child->tid == child_pid){
-			child_one = child;
-			break;
-		}
-	}
+	// for (struct list_elem *e = list_begin(&thread_current()->child_list); e != list_end(&thread_current()->child_list); e = list_next(e)){
+	// 	struct thread *child = list_entry(e, struct thread, child_elem);
+	// 	if(child->tid == child_pid){
+	// 		child_one = child;
+	// 		break;
+	// 	}
+	// }
 
 
 }
@@ -267,7 +271,7 @@ open_handler (const char *file_name) {
 
 	// add file to file descriptor table of the current thread
 	struct thread *curr_thread = thread_current ();
-	int fd = add_file_descriptor_to_fd_table (file);
+	int fd = add_file_to_fd_table (file);
 	return fd;
 }
 
@@ -375,7 +379,7 @@ tell_handler (int fd) {
 void
 close_handler (int fd) {
 	// TODO: implement kernel logic for close
-	remove_file_descriptor_from_fd_table (fd);
+	remove_file_from_fd_table (fd);
 }
 
 /**
@@ -393,7 +397,7 @@ get_file_from_fd_table (int fd) {
 }
 
 int
-add_file_descriptor_to_fd_table (struct file *file) {
+add_file_to_fd_table (struct file *file) {
 	struct file **fdt = thread_current ()->fd_table;
 
 	for (int fd = FD_MIN; fd < FD_LIMIT; fd++) {
@@ -407,7 +411,7 @@ add_file_descriptor_to_fd_table (struct file *file) {
 }
 
 void
-remove_file_descriptor_from_fd_table (int fd) {
+remove_file_from_fd_table (int fd) {
 	struct file **fdt = thread_current ()->fd_table;
 
 	if (fd < FD_MIN || fd >= FD_LIMIT) {
