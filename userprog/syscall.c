@@ -30,6 +30,7 @@ static int add_file_descriptor_to_fd_table (struct file *file);
 static void validate_address (void *addr);
 static void remove_file_descriptor_from_fd_table (int fd);
 
+struct lock file_lock;
 
 /* System call.
  *
@@ -55,6 +56,8 @@ syscall_init (void) {
 	 * mode stack. Therefore, we masked the FLAG_FL. */
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
+
+	lock_init(&file_lock);
 }
 
 /* The main system call interface */
