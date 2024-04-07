@@ -70,6 +70,7 @@ void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
 	// printf ("system call!\n");
+	memcpy(&thread_current()->parent_if, f, sizeof(struct intr_frame));
 
 	// 1. Extract system call number and arguments from f->RAX and other registers.
 	// when the system call handler syscall_handler() gets control, the system call number is in the rax, and arguments are passed with the order %rdi, %rsi, %rdx, %r10, %r8, and %r9.
@@ -171,6 +172,25 @@ exit_handler (int status) {
 int
 fork_handler (const char *thread_name) {
 	// TODO: implement kernel logic for fork
+	validate_address (thread_name);
+
+	int child_pid = process_fork(thread_name, &thread_current()->parent_if);
+
+	if(child_pid == TID_ERROR){
+		return TID_ERROR;
+	}
+
+	struct thread *child_one = NULL;
+	
+	for(struct list_elem *e = list_begin(&thread_current()->child_list); e != list_end(&thread_current()->child_list); e = list_next(e)){
+		struct thread *child = list_entry(e, struct thread, child_elem);
+		if(child->tid == child_pid){
+			child_one = child;
+			break;
+		}
+	}
+
+
 }
 
 /**
