@@ -98,6 +98,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_EXEC: 		 			/* Start another process. */
 			break;
 		case SYS_WAIT: 		 			/* Wait for a child process to die. */
+			f->R.rax = wait_handler (arg1);
 			break;
 		case SYS_CREATE:  				/* Create a file. */
 			f->R.rax = create_handler ((const char *) arg1, (unsigned) arg2);
@@ -193,6 +194,7 @@ exec_handler (const char *cmd_line) {
 int
 wait_handler (int pid) {
 	// TODO: implement kernel logic for wait
+	return process_wait ((tid_t) pid);
 }
 
 /**
