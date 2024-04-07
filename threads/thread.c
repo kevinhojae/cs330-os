@@ -242,16 +242,13 @@ thread_create (const char *name, int priority,
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
 
-	/* File Descriptor 초기화 */
-	t->fd_count = 2;
-	struct file_descriptor *fd_stdin = malloc(sizeof(struct file_descriptor)); // stdin
-	struct file_descriptor *fd_stdout = malloc(sizeof(struct file_descriptor)); // stdout
-	fd_stdin->fd = 0;
-	fd_stdin->file = NULL;
-	fd_stdout->fd = 1;
-	fd_stdout->file = NULL;
-	list_push_back(&t->fd_table, &fd_stdin->elem);
-	list_push_back(&t->fd_table, &fd_stdout->elem);
+	t->fd_table = palloc_get_multiple(PAL_ZERO, FD_MIN);
+	if (t->fd_table == NULL) {
+		return TID_ERROR;
+	}
+	t->fd_table[0] = 1; // stdin
+	t->fd_table[1] = 2; // stdout
+
 #ifdef USERPROG
 	t->parent = thread_current();
 	list_push_back(&thread_current()->child_list, &t->child_elem);
@@ -794,10 +791,6 @@ init_thread (struct thread *t, const char *name, int priority) {
 	//초기값 설정하기
 	t->nice = 0;
 	t->recent_cpu = 0;
-
-	/* Set up the file descriptor table for the running thread. */
-	list_init (&t->fd_table); // Initialize the file descriptor table.
-	t->fd_count = 2; // 0: STDIN_FILENO, 1: STDOUT_FILENO
 
 #ifdef USERPROG
 	list_init(&t->child_list);
