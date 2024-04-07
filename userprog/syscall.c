@@ -212,6 +212,10 @@ create_handler (const char *file, unsigned initial_size) {
 bool
 remove_handler (const char *file) {
 	// TODO: implement kernel logic for remove
+	validate_address(file);
+	if (file == NULL) { // file이 NULL이면 종료
+		return false;
+	}
 	return filesys_remove(file);
 }
 
@@ -238,7 +242,7 @@ open_handler (const char *file_name) {
 	struct thread *curr_thread = thread_current ();
 	int fd = add_file_descriptor_to_fd_table (file);
 	if (fd == -1) {
-		return -1;
+		file_close (file);
 	}
 
 	return fd;
@@ -272,11 +276,13 @@ read_handler (int fd, void *buffer, unsigned size) {
 	}
 	else if (fd < 0 || fd == NULL || fd == 1) {
 		exit_handler(-1);
+		return -1;
 	}
 
 	// find file from file descriptor table
 	struct file *file = get_file_from_fd_table (fd);
 	if (file == NULL) {
+		exit_handler(-1);
 		return -1; // file descriptor not found or file is not open
 	}
 
@@ -321,7 +327,7 @@ seek_handler (int fd, unsigned position) {
 	// TODO: implement kernel logic for seek
 
 	struct file *file = get_file_from_fd_table (fd);
-	if (file == NULL) {
+	if (file == NULL || file<=2) {
 		return; // file descriptor not found or file is not open
 	}
 
@@ -339,7 +345,7 @@ tell_handler (int fd) {
 		return -1; // file descriptor not found or file is not open
 	}
 
-	return file_tell (file);
+	return (unsigned)file_tell(file);
 }
 
 /**
@@ -398,6 +404,7 @@ remove_file_descriptor_from_fd_table (int fd) {
 			return;
 		}
 	}
+	exit_handler(-1);
 }
 
 void
