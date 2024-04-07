@@ -399,7 +399,9 @@ remove_file_descriptor_from_fd_table (int fd) {
 
 void
 validate_address (void *addr) {
-	if (is_kernel_vaddr (addr) || pml4_get_page (thread_current ()->pml4, addr) == NULL) {
+	bool is_user = is_user_vaddr (addr);
+	void *is_page_mapped = pml4_get_page (thread_current ()->pml4, addr);
+	if (!(addr && is_user && is_page_mapped)) {
 		exit_handler (-1);
 	}
 }
