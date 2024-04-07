@@ -28,6 +28,10 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+/* File descriptor for file system */
+#define FD_MIN 2
+#define FD_LIMIT 128
+
 /* A kernel thread or user process.
  *
  * Each thread structure is stored in its own 4 kB page.  The
@@ -113,8 +117,7 @@ struct thread {
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
 	int exit_status;                    /* syscall - Exit status */
-	struct list fd_table;  				/* File descriptor table */
-	int fd_count;  						/* File descriptor count */
+	struct file **fd_table;             /* File descriptor table */
 	struct intr_frame *parent_if;       /* Parent's intr_frame */
 	struct list child_list; 		   /* List of child threads */
 	struct list_elem child_elem; 	   /* List element for child threads */
