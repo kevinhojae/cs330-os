@@ -383,48 +383,38 @@ close_handler (int fd) {
  */
 struct file *
 get_file_from_fd_table (int fd) {
-	struct thread *curr_thread = thread_current ();
-	struct list_elem *e;
+	struct file **fdt = thread_current ()->fd_table;
 
-	struct list *fd_table = &curr_thread->fd_table;
-	for (e = list_begin (fd_table); e != list_end (fd_table); e = list_next (e)) {
-		struct file_descriptor *file_descriptor = list_entry (e, struct file_descriptor, elem);
-		if (file_descriptor->fd == fd) {
-			return file_descriptor->file;
-		}
+	if (fd < FD_MIN || fd >= FD_LIMIT) {
+		return NULL;
 	}
-	return NULL;
+
+	return fdt[fd];
 }
 
 int
 add_file_descriptor_to_fd_table (struct file *file) {
-	struct thread *curr_thread = thread_current ();
-	struct file_descriptor *file_descriptor = malloc (sizeof (struct file_descriptor));
-	if (file_descriptor == NULL) {
-		return -1;
+	struct file **fdt = thread_current ()->fd_table;
+
+	for (int fd = FD_MIN; fd < FD_LIMIT; fd++) {
+		if (fdt[fd] == NULL) {
+			fdt[fd] = file;
+			return fd;
+		}
 	}
-	file_descriptor->fd = curr_thread->fd_count;
-	curr_thread->fd_count++;
-	file_descriptor->file = file;
-	list_push_back (&curr_thread->fd_table, &file_descriptor->elem);
-	return file_descriptor->fd;
+
+	return -1;
 }
 
 void
 remove_file_descriptor_from_fd_table (int fd) {
-	struct thread *curr_thread = thread_current ();
-	struct list_elem *e;
+	struct file **fdt = thread_current ()->fd_table;
 
-	struct list *fd_table = &curr_thread->fd_table;
-	for (e = list_begin (fd_table); e != list_end (fd_table); e = list_next (e)) {
-		struct file_descriptor *file_descriptor = list_entry (e, struct file_descriptor, elem);
-		if (file_descriptor->fd == fd) {
-			file_close (file_descriptor->file);
-			list_remove (&file_descriptor->elem);
-			// free (file_descriptor->file); → 왜 이렇게 해야 테스트를 통과하고, file_close를 하면 테스트를 통과하지 못하는지 모르겠음
-			return;
-		}
+	if (fd < FD_MIN || fd >= FD_LIMIT) {
+		return;
 	}
+
+	fdt[fd] = NULL;
 }
 
 void
