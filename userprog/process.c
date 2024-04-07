@@ -209,8 +209,25 @@ process_wait (tid_t child_tid UNUSED) {
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
 
+	struct thread *child = NULL;
+	struct list *ch_list = &thread_current ()->child_list;
+	struct list_elem *e;
+	int child_exit_status;
+
+	for(e = list_begin(ch_list); e != list_end(ch_list); e = list_next(e)) {
+		
+		child = list_entry(e, struct thread, child_elem);
+		
+		if (child_tid == child->tid) {
+			/* Wait until the child is terminated. */
+			child_exit_status = child->exit_status;
+			list_remove(&child->child_elem);
+			return child_exit_status;
+		}
+	}
+
 	// for make test, wait for 5 seconds
-	timer_sleep (2 * TIMER_FREQ);
+	//timer_sleep (2 * TIMER_FREQ);
 
 	// for debug, infinite loop
 	// while (1) { 
