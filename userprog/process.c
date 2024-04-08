@@ -220,26 +220,35 @@ process_wait (tid_t child_tid UNUSED) {
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
 
-	struct thread *child = NULL;
-	struct list *ch_list = &thread_current ()->child_list;
-	struct list_elem *e;
-	int child_exit_status;
+	struct thread *curr_thread = thread_current();
 
-	for (e = list_begin(ch_list); e != list_end(ch_list); e = list_next(e)) {
-		
-		child = list_entry(e, struct thread, child_elem);
-		
-		if (child_tid == child->tid) {
-			/* Wait until the child is terminated. */
-			child_exit_status = child->exit_status;
-			list_remove(&child->child_elem);
-			return child_exit_status;
-		}
-	}
+    struct thread *child_proc = NULL;
+    struct list_elem *e;
+    for (e = list_begin(&curr_thread->child_list); e != list_end(&curr_thread->child_list); e = list_next(e)) {
+        child_proc = list_entry(e, struct thread, child_elem);
+        if (child_proc->tid == child_tid) {
+            if (child_proc->is_waiting) {
+                return -1; // 이미 wait가 호출됨
+            }
+            child_proc->is_waiting = true;
+
+			sema_down(&child_proc->sema_wait); // 자식 프로세스의 종료를 기다림
+
+            int status = child_proc->exit_status;
+            list_remove(e);
+            free(child_proc);
+            return status;
+        }
+    }
+    return -1; // 자식 프로세스가 없음
+            free(child_proc);
+            return status;
+	// timer_sleep (2 * TIMER_FREQ);
+    }
+    return -1; // 자식 프로세스가 없음
 
 	// for make test, wait for 5 seconds
 	//timer_sleep (2 * TIMER_FREQ);
-
 	// for debug, infinite loop
 	// while (1) { 
 	// 	timer_sleep (TIMER_FREQ);
