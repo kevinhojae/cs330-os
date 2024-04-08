@@ -178,21 +178,12 @@ fork_handler (const char *thread_name) {
 	// TODO: implement kernel logic for fork
 	validate_address (thread_name);
 
+	thread_current()->parent_if = thread_current()->tf; // save parent's interrupt frame
 	int child_pid = process_fork (thread_name, &thread_current()->parent_if);
 
 	if(child_pid == TID_ERROR){
 		return TID_ERROR;
 	}
-
-	// struct thread *child_one = NULL;
-	
-	// for (struct list_elem *e = list_begin(&thread_current()->child_list); e != list_end(&thread_current()->child_list); e = list_next(e)){
-	// 	struct thread *child = list_entry(e, struct thread, child_elem);
-	// 	if(child->tid == child_pid){
-	// 		child_one = child;
-	// 		break;
-	// 	}
-	// }
 
 
 }
