@@ -137,23 +137,29 @@ __do_fork (void *aux) {
 	struct thread *parent = (struct thread *) aux;
 	struct thread *current = thread_current ();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-	struct intr_frame *parent_if;
+	struct intr_frame *parent_if = &parent->parent_if;
 	bool succ = true;
 
 	/* 1. Read the cpu context to local stack. */
+	// parent_if의 정보를 if_에 복사
+	// if_는 현재 프로세스의 intr_frame 구조체로, 현재 프로세스의 정보를 저장
 	memcpy (&if_, parent_if, sizeof (struct intr_frame));
 
 	/* 2. Duplicate PT */
+	// 현재 프로세스의 pml4를 생성, pml4란 page map level 4의 약자로 64비트 주소 공간을 512개의 페이지 테이블로 나누어 관리하는 방식
+	// 생성해주는 이유는 현재 프로세스의 pml4를 복사하기 위함
 	current->pml4 = pml4_create();
 	if (current->pml4 == NULL)
 		goto error;
 
+	// process_activate으로 현재 프로세스의 pml4를 활성화하고, thread의 kernel stack을 설정
 	process_activate (current);
 #ifdef VM
 	supplemental_page_table_init (&current->spt);
 	if (!supplemental_page_table_copy (&current->spt, &parent->spt))
 		goto error;
 #else
+	// pml4_for_each 함수를 통해 parent의 pml4를 순회하며 duplicate_pte 함수를 호출하여 현재 프로세스의 pml4에 복사
 	if (!pml4_for_each (parent->pml4, duplicate_pte, parent))
 		goto error;
 #endif
@@ -163,6 +169,16 @@ __do_fork (void *aux) {
 	 * TODO:       in include/filesys/file.h. Note that parent should not return
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
+	/* 3. Duplicate the file descriptor table. */
+	// file_duplicate 함수를 통해 parent의 file descriptor table을 복사
+	for (int i = FD_BASE; i < FD_LIMIT; i++) {
+		if (parent->fd_table[i] != NULL) {
+			current->fd_table[i] = file_duplicate (parent->fd_table[i]);
+			if (current->fd_table[i] == NULL) {
+				goto error;
+			}
+		}
+	}
 
 	process_init ();
 
