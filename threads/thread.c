@@ -242,17 +242,13 @@ thread_create (const char *name, int priority,
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
 
-	t->fd_table = palloc_get_multiple(PAL_ZERO, FD_MIN);
+	t->fd_table = palloc_get_multiple(PAL_ZERO, FD_BASE);
 	if (t->fd_table == NULL) {
 		return TID_ERROR;
 	}
 	t->fd_table[0] = 1; // stdin
-	t->fd_table[1] = 2; // stdout
+	t->fd_table[1] = 2; // stdout	
 
-#ifdef USERPROG
-	t->parent = thread_current();
-	list_push_back(&thread_current()->child_list, &t->child_elem);
-#endif
 	/* Add to run queue. */
 	thread_unblock (t); // NOTE: unblock the new thread to add it to the ready list.
 	thread_try_preempt ();
