@@ -257,19 +257,14 @@ process_wait (tid_t child_tid UNUSED) {
         }
     }
     return -1; // 자식 프로세스가 없음
-            free(child_proc);
-            return status;
-	// timer_sleep (2 * TIMER_FREQ);
-    }
-    return -1; // 자식 프로세스가 없음
 
 	// for make test, wait for 5 seconds
-	//timer_sleep (2 * TIMER_FREQ);
+	// timer_sleep (2 * TIMER_FREQ);
+
 	// for debug, infinite loop
 	// while (1) { 
 	// 	timer_sleep (TIMER_FREQ);
 	// }
-    return -1;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
