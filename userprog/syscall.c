@@ -389,7 +389,7 @@ struct file *
 get_file_from_fd_table (int fd) {
 	struct file **fdt = thread_current ()->fd_table;
 
-	if (fd < FD_MIN || fd >= FD_LIMIT) {
+	if (fd < FD_BASE || fd >= FD_LIMIT) {
 		return NULL;
 	}
 
@@ -400,7 +400,7 @@ int
 add_file_to_fd_table (struct file *file) {
 	struct file **fdt = thread_current ()->fd_table;
 
-	for (int fd = FD_MIN; fd < FD_LIMIT; fd++) {
+	for (int fd = FD_BASE; fd < FD_LIMIT; fd++) {
 		if (fdt[fd] == NULL) {
 			fdt[fd] = file;
 			return fd;
@@ -414,7 +414,7 @@ void
 remove_file_from_fd_table (int fd) {
 	struct file **fdt = thread_current ()->fd_table;
 
-	if (fd < FD_MIN || fd >= FD_LIMIT) {
+	if (fd < FD_BASE || fd >= FD_LIMIT) {
 		return;
 	}
 
