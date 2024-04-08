@@ -196,6 +196,18 @@ fork_handler (const char *thread_name) {
 int
 exec_handler (const char *cmd_line) {
 	// TODO: implement kernel logic for exec
+	validate_address (cmd_line);
+
+	if (cmd_line == NULL) { // cmd_line이 NULL이면 종료
+		exit_handler (-1);
+	}
+
+	// change current process to the executable whose name is given in cmd_line
+	tid_t exec_status = process_exec (cmd_line);
+
+	if (exec_status == TID_ERROR) {
+		return TID_ERROR;
+	}
 }
 
 /**
