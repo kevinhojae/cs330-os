@@ -419,3 +419,18 @@ validate_address (void *addr) {
 	}
 }
 
+struct thread *
+get_child_process (tid_t child_tid) {
+	struct thread *child = NULL;
+	struct list_elem *e;
+
+	for (e = list_begin (&thread_current ()->child_list); e != list_end (&thread_current ()->child_list); e = list_next (e)) {
+		struct thread *t = list_entry (e, struct thread, child_elem);
+		if (t->tid == child_tid) {
+			child = t;
+			break;
+		}
+	}
+
+	return child;
+}
