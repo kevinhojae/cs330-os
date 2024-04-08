@@ -790,6 +790,8 @@ init_thread (struct thread *t, const char *name, int priority) {
 
 #ifdef USERPROG
 	list_init(&t->child_list);
+	sema_init(&t->sema_wait, 0);
+	t->is_waiting = false;
 #endif
 }
 
