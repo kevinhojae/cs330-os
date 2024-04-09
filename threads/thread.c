@@ -249,6 +249,8 @@ thread_create (const char *name, int priority,
 	t->fd_table[0] = 1; // stdin
 	t->fd_table[1] = 2; // stdout	
 
+	list_push_back (&thread_current ()->child_list, &t->child_elem); // add to the child list of the parent thread
+
 	/* Add to run queue. */
 	thread_unblock (t); // NOTE: unblock the new thread to add it to the ready list.
 	thread_try_preempt ();
@@ -788,11 +790,10 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->nice = 0;
 	t->recent_cpu = 0;
 
-#ifdef USERPROG
 	list_init(&t->child_list);
 	sema_init(&t->sema_wait, 0);
-	t->is_waiting = false;
-#endif
+	sema_init(&t->sema_load, 0);
+	sema_init(&t->sema_exit, 0);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
