@@ -37,6 +37,7 @@ static void validate_address (void *addr);
 static void remove_file_from_fd_table (int fd);
 
 struct lock file_lock;
+struct lock syscall_lock;
 
 /* System call.
  *
@@ -64,6 +65,7 @@ syscall_init (void) {
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
 
 	lock_init(&file_lock);
+	lock_init(&syscall_lock);
 }
 
 /* The main system call interface */
@@ -300,10 +302,12 @@ read_handler (int fd, void *buffer, unsigned size) {
 	unsigned int byte_counter = 0;
 
 	if (fd == 0) {
+		lock_acquire (&syscall_lock);
 		for (unsigned i = 0; i < size; i++) {
 			((char *) buffer)[i] = input_getc ();
 			byte_counter++;
 		}
+		lock_release (&syscall_lock);
 		return byte_counter;
 	}
 	else if (fd < 0 || fd == NULL || fd == 1) {
@@ -334,7 +338,9 @@ write_handler (int fd, const void *buffer, unsigned size) {
 
 	// write to console
 	if (fd == 1) {
+		lock_acquire (&syscall_lock);
 		putbuf (buffer, size);
+		lock_release (&syscall_lock);
 		return size;
 	}
 
