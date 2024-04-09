@@ -44,12 +44,12 @@ pintos-mkdisk filesys.dsk 10
 
 # if mode is test, then run the test
 if [ "$mode" = "test" ]; then
-    echo "pintos --fs-disk filesys.dsk -p tests/userprog/${test}:${test} ${put_files} ${put_codes} -- -q -f run \"${command}\""
-    pintos --fs-disk filesys.dsk -p tests/userprog/${test}:${test} ${put_files} ${put_codes} -- -q -f run "${command}"
+    echo "pintos --fs-disk filesys.dsk -p tests/userprog/${test}:${test} ${put_files}${put_codes} -- -q -f run \"${command}\""
+    pintos --fs-disk filesys.dsk -p tests/userprog/${test}:${test} ${put_files}${put_codes} -- -q -f run "${command}"
 fi
 
 # if mode is debug, then run the test with gdb
 if [ "$mode" = "debug" ]; then
-    echo "pintos --gdb --fs-disk filesys.dsk -p tests/userprog/${test}:${test} ${put_files} ${put_codes} -- -q -f run \"${command}\""
-    pintos --gdb --fs-disk filesys.dsk -p tests/userprog/${test}:${test} ${put_files} ${put_codes} -- -q -f run "${command}"
+    echo "pintos --gdb --fs-disk filesys.dsk -p tests/userprog/${test}:${test} ${put_files}${put_codes} -- -q -f run \"${command}\""
+    pintos --gdb --fs-disk filesys.dsk -p tests/userprog/${test}:${test} ${put_files}${put_codes} -- -q -f run "${command}"
 fi

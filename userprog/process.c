@@ -78,10 +78,23 @@ initd (void *f_name) {
 /* Clones the current process as `name`. Returns the new process's thread id, or
  * TID_ERROR if the thread cannot be created. */
 tid_t
-process_fork (const char *name, struct intr_frame *if_ UNUSED) {
+process_fork(const char *name, struct intr_frame *if_ UNUSED)
+{
 	/* Clone current thread to new thread.*/
-	return thread_create (name,
-			PRI_DEFAULT, __do_fork, thread_current ());
+	struct thread *cur = thread_current();
+	memcpy(&cur->parent_if, if_, sizeof(struct intr_frame));
+
+	tid_t pid = thread_create(name, PRI_DEFAULT, __do_fork, cur);
+	if (pid == TID_ERROR)
+		return TID_ERROR;
+
+	struct thread *child = get_child_process(pid);
+
+	if (child->exit_status == TID_ERROR) {
+		return TID_ERROR;
+	}
+
+	return pid;
 }
 
 #ifndef VM
@@ -96,7 +109,7 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	bool writable;
 
 	/* 1. TODO: If the parent_page is kernel page, then return immediately. */
-	if (is_kern_pte (pte))
+	if (is_kernel_vaddr(va))
 		return true; // 여기서 true를 반환하는 이유는 pml4_for_each 함수가 false를 반환하면 순회를 중단하기 때문이다.
 
 	/* 2. Resolve VA from the parent's page map level 4. */
@@ -106,7 +119,7 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 
 	/* 3. TODO: Allocate new PAL_USER page for the child and set result to
 	 *    TODO: NEWPAGE. */
-	newpage = palloc_get_page (PAL_USER);
+	newpage = palloc_get_page (PAL_USER | PAL_ZERO);
 	if (newpage == NULL)
 		return false;
 
@@ -144,6 +157,7 @@ __do_fork (void *aux) {
 	// parent_if의 정보를 if_에 복사
 	// if_는 현재 프로세스의 intr_frame 구조체로, 현재 프로세스의 정보를 저장
 	memcpy (&if_, parent_if, sizeof (struct intr_frame));
+	// if_.R.rax = 0; // 자식 프로세스의 리턴값을 0으로 초기화
 
 	/* 2. Duplicate PT */
 	// 현재 프로세스의 pml4를 생성, pml4란 page map level 4의 약자로 64비트 주소 공간을 512개의 페이지 테이블로 나누어 관리하는 방식
@@ -236,35 +250,35 @@ process_wait (tid_t child_tid UNUSED) {
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
 
-	struct thread *curr_thread = thread_current();
+	// struct thread *curr_thread = thread_current();
 
-    struct thread *child_proc = NULL;
-    struct list_elem *e;
-    for (e = list_begin(&curr_thread->child_list); e != list_end(&curr_thread->child_list); e = list_next(e)) {
-        child_proc = list_entry(e, struct thread, child_elem);
-        if (child_proc->tid == child_tid) {
-            if (child_proc->is_waiting) {
-                return -1; // 이미 wait가 호출됨
-            }
-            child_proc->is_waiting = true;
+    // struct thread *child_proc = NULL;
+    // struct list_elem *e;
+    // for (e = list_begin(&curr_thread->child_list); e != list_end(&curr_thread->child_list); e = list_next(e)) {
+    //     child_proc = list_entry(e, struct thread, child_elem);
+    //     if (child_proc->tid == child_tid) {
+    //         if (child_proc->is_waiting) {
+    //             return -1; // 이미 wait가 호출됨
+    //         }
+    //         child_proc->is_waiting = true;
 
-			sema_down(&child_proc->sema_wait); // 자식 프로세스의 종료를 기다림
+	// 		sema_down(&child_proc->sema_wait); // 자식 프로세스의 종료를 기다림
 
-            int status = child_proc->exit_status;
-            list_remove(e);
-            free(child_proc);
-            return status;
-        }
-    }
-    return -1; // 자식 프로세스가 없음
+    //         int status = child_proc->exit_status;
+    //         list_remove(e);
+    //         free(child_proc);
+    //         return status;
+    //     }
+    // }
+    // return -1; // 자식 프로세스가 없음
 
 	// for make test, wait for 5 seconds
 	// timer_sleep (2 * TIMER_FREQ);
 
 	// for debug, infinite loop
-	// while (1) { 
-	// 	timer_sleep (TIMER_FREQ);
-	// }
+	while (1) { 
+		timer_sleep (TIMER_FREQ);
+	}
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -316,6 +330,23 @@ process_activate (struct thread *next) {
 	/* Set thread's kernel stack for use in processing interrupts. */
 	tss_update (next);
 }
+
+struct thread *
+get_child_process (tid_t child_tid) {
+	struct thread *child = NULL;
+	struct list_elem *e;
+
+	for (e = list_begin (&thread_current ()->child_list); e != list_end (&thread_current ()->child_list); e = list_next (e)) {
+		struct thread *t = list_entry (e, struct thread, child_elem);
+		if (t->tid == child_tid) {
+			child = t;
+			break;
+		}
+	}
+
+	return child;
+}
+
 
 /* We load ELF binaries.  The following definitions are taken
  * from the ELF specification, [ELF1], more-or-less verbatim.  */

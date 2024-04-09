@@ -19,7 +19,7 @@ void syscall_handler (struct intr_frame *);
 
 static void halt_handler (void);
 static void exit_handler (int status);
-static int fork_handler (const char *thread_name);
+static int fork_handler (const char *thread_name, struct intr_frame *f);
 static int exec_handler (const char *cmd_line);
 static int wait_handler (int pid);
 static bool create_handler (const char *file, unsigned initial_size);
@@ -71,64 +71,64 @@ void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
 	// printf ("system call!\n");
-	memcpy(&thread_current()->parent_if, f, sizeof(struct intr_frame));
 
 	// 1. Extract system call number and arguments from f->RAX and other registers.
 	// when the system call handler syscall_handler() gets control, the system call number is in the rax, and arguments are passed with the order %rdi, %rsi, %rdx, %r10, %r8, and %r9.
-	int syscall_number = f->R.rax;
-	int arg1 = f->R.rdi;
-	int arg2 = f->R.rsi;
-	int arg3 = f->R.rdx;
-	int arg4 = f->R.r10;
-	int arg5 = f->R.r8;
-	int arg6 = f->R.r9;
+	// int syscall_number = f->R.rax;
+	// int arg1 = f->R.rdi;
+	// int arg2 = f->R.rsi;
+	// int arg3 = f->R.rdx;
+	// int arg4 = f->R.r10;
+	// int arg5 = f->R.r8;
+	// int arg6 = f->R.r9;
 
 	// 2. Switch based on system call number to handle different system calls.
 	// 3. For system calls involving user pointers, validate pointers before proceeding.
 	// 4. Perform the requested operation, which may involve interacting with the file system, process management, or memory management subsystems.
 	// 5. Return results to the calling process, either through the return value in f->RAX or through state changes in the process or system.
 	// If a system call is passed an invalid argument, acceptable options include returning an error value (for those calls that return a value), returning an undefined value, or terminating the process.
-	switch (syscall_number) {
+	switch (f->R.rax) {
 		case SYS_HALT:  		   		/* Halt the operating system. */
 			halt_handler ();
 			break;
 		case SYS_EXIT:  		 		/* Terminate this process. */
-			exit_handler (arg1);
+			exit_handler (f->R.rdi);
 			break;
 		case SYS_FORK: 		 			/* Clone current process. */
-			f->R.rax = fork_handler ((const char *) arg1);
+			f->R.rax = fork_handler ((const char *) f->R.rdi, f);
 			break;                   
-		case SYS_EXEC: 		 			/* Start another process. */
+		case SYS_EXEC: 
+			f->R.rax = exec_handler((const char *) f->R.rdi);
 			break;
 		case SYS_WAIT: 		 			/* Wait for a child process to die. */
-			f->R.rax = wait_handler (arg1);
+			f->R.rax = wait_handler (f->R.rdi);
 			break;
 		case SYS_CREATE:  				/* Create a file. */
-			f->R.rax = create_handler ((const char *) arg1, (unsigned) arg2);
+			f->R.rax = create_handler ((const char *) f->R.rdi, (unsigned) f->R.rsi);
 			break;
 		case SYS_REMOVE: 				/* Delete a file. */
-			f->R.rax = remove_handler ((const char *) arg1);
+			f->R.rax = remove_handler ((const char *) f->R.rdi);
 			break;
 		case SYS_OPEN:  				/* Open a file. */
-			f->R.rax = open_handler ((const char *) arg1);
+			f->R.rax = open_handler ((const char *) f->R.rdi);
 			break;
 		case SYS_FILESIZE: 				/* Obtain a file's size. */
-			f->R.rax = filesize_handler (arg1);
+			f->R.rax = filesize_handler (f->R.rdi);
 			break;
 		case SYS_READ: 					/* Read from a file. */
-			f->R.rax = read_handler (arg1, (void *) arg2, (unsigned) arg3);
+			f->R.rax = read_handler (f->R.rdi, (void *) f->R.rsi, (unsigned) f->R.rdx);
 			break;
 		case SYS_WRITE: 				/* Write to a file. */
-			f->R.rax = write_handler (arg1, (void *) arg2, (unsigned) arg3);
+			f->R.rax = write_handler (f->R.rdi, (const void *) f->R.rsi, (unsigned) f->R.rdx);
 			break;
 		case SYS_SEEK: 					/* Change position in a file. */
-			seek_handler (arg1, (unsigned) arg2);
+			seek_handler (f->R.rdi, (unsigned) f->R.rsi);
 			break;
 		case SYS_TELL: 					/* Report current position in a file. */
-			f->R.rax = tell_handler (arg1);
+			f->R.rax = tell_handler (f->R.rdi);
 			break;
 		case SYS_CLOSE: 				/* Close a file. */
-			close_handler (arg1);
+			close_handler (f->R.rdi);
 			break;
 		default:
 			// thread_exit ();
@@ -174,18 +174,8 @@ exit_handler (int status) {
  * The template utilizes the pml4_for_each() in threads/mmu.c to copy entire user memory space, including corresponding pagetable structures, but you need to fill missing parts of passed pte_for_each_func (See virtual address).
  */
 int
-fork_handler (const char *thread_name) {
-	// TODO: implement kernel logic for fork
-	validate_address (thread_name);
-
-	thread_current()->parent_if = thread_current()->tf; // save parent's interrupt frame
-	int child_pid = process_fork (thread_name, &thread_current()->parent_if);
-
-	if(child_pid == TID_ERROR){
-		return TID_ERROR;
-	}
-
-
+fork_handler (const char *thread_name, struct intr_frame *f) {
+	return process_fork (thread_name, f);
 }
 
 /**
@@ -196,17 +186,24 @@ fork_handler (const char *thread_name) {
 int
 exec_handler (const char *cmd_line) {
 	// TODO: implement kernel logic for exec
-	validate_address (cmd_line);
+	validate_address_range (cmd_line, strlen (cmd_line) + 1);
 
 	if (cmd_line == NULL) { // cmd_line이 NULL이면 종료
 		exit_handler (-1);
 	}
 
-	// change current process to the executable whose name is given in cmd_line
-	tid_t exec_status = process_exec (cmd_line);
-
-	if (exec_status == TID_ERROR) {
+	// make copy of cmd_line
+	// char *cmd_line_copy = malloc (strlen (cmd_line) + 1);
+	char *cmd_line_copy = palloc_get_page (0);
+	if (cmd_line_copy == NULL) {
 		return TID_ERROR;
+	}
+	strlcpy (cmd_line_copy, cmd_line, strlen (cmd_line) + 1);
+
+	// change current process to the executable whose name is given in cmd_line
+	tid_t exec_status = process_exec (cmd_line_copy);
+	if (exec_status == TID_ERROR) {
+		exit_handler (-1);
 	}
 }
 
@@ -426,23 +423,31 @@ remove_file_from_fd_table (int fd) {
 
 void
 validate_address (void *addr) {
-	if (is_kernel_vaddr (addr) || pml4_get_page (thread_current ()->pml4, addr) == NULL) {
-		exit_handler (-1);
+	bool is_user = is_user_vaddr (addr);
+	uint64_t *pte = pml4_get_page (thread_current ()->pml4, addr);
+	
+	if (addr != NULL && is_user && pte != NULL) {
+		return;
 	}
+	exit_handler (-1);
 }
 
-struct thread *
-get_child_process (tid_t child_tid) {
-	struct thread *child = NULL;
-	struct list_elem *e;
+void
+validate_address_range(const void *addr, unsigned size) {
+    unsigned i;
+    uint64_t *pte;
 
-	for (e = list_begin (&thread_current ()->child_list); e != list_end (&thread_current ()->child_list); e = list_next (e)) {
-		struct thread *t = list_entry (e, struct thread, child_elem);
-		if (t->tid == child_tid) {
-			child = t;
-			break;
-		}
-	}
+    for (i = 0; i < size; i += PGSIZE) {
+        const void *current_addr = (const uint8_t *)addr + i;
+        bool is_user = is_user_vaddr(current_addr);
+        
+        // 페이지 경계를 넘어가는 경우를 고려하여, 실제로 접근하는 최종 주소를 확인
+        const void *check_addr = (i + PGSIZE < size) ? current_addr : (const uint8_t *)addr + size - 1;
 
-	return child;
+        pte = pml4_get_page(thread_current()->pml4, check_addr);
+        
+        if (!is_user || pte == NULL) {
+            exit_handler(-1);
+        }
+    }
 }
