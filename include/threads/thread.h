@@ -120,7 +120,7 @@ struct thread {
 	
 	int exit_status;                    /* syscall - Exit status, 0 is success and -1 is fail */
 
-	struct list fd_table;             /* File descriptor table */
+	struct list *fd_table;             /* File descriptor table */
 	int next_fd;                      /* Next file descriptor */
 
 	struct list child_list; 		   /* List of child threads */

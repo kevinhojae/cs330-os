@@ -387,9 +387,9 @@ close_handler (int fd) {
  */
 struct file *
 get_file_from_fd_table (int fd) {
-	struct list fdt = thread_current ()->fd_table;
+	struct list *fdt = thread_current ()->fd_table;
 
-	for (struct list_elem *e = list_begin (&fdt); e != list_end (&fdt); e = list_next (e)) {
+	for (struct list_elem *e = list_begin (fdt); e != list_end (fdt); e = list_next (e)) {
 		struct fd_elem *fd_elem = list_entry (e, struct fd_elem, elem);
 		if (fd_elem->fd == fd) {
 			return fd_elem->file;
@@ -402,7 +402,7 @@ get_file_from_fd_table (int fd) {
 int
 add_file_to_fd_table (struct file *file) {
 	struct thread *curr_thread = thread_current ();
-	struct list fdt = curr_thread->fd_table;
+	struct list *fdt = curr_thread->fd_table;
 
 	struct fd_elem *fd_elem = malloc (sizeof (struct fd_elem));
 	if (fd_elem == NULL) {
@@ -413,17 +413,17 @@ add_file_to_fd_table (struct file *file) {
 	fd_elem->file = file;
 	curr_thread->next_fd++;
 
-	list_push_back (&fdt, &fd_elem->elem);
+	list_push_back (fdt, &fd_elem->elem);
 
 	return fd_elem->fd;
 }
 
 void
 remove_file_from_fd_table (int fd) {
-	struct list fdt = thread_current ()->fd_table;
+	struct list *fdt = thread_current ()->fd_table;
 
-	for (int i = 0; i < list_size (&fdt); i++) {
-		struct fd_elem *fd_elem = list_entry (list_begin (&fdt), struct fd_elem, elem);
+	for (int i = 0; i < list_size (fdt); i++) {
+		struct fd_elem *fd_elem = list_entry (list_begin (fdt), struct fd_elem, elem);
 		if (fd_elem->fd == fd) {
 			list_remove (&fd_elem->elem);
 
