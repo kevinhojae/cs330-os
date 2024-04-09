@@ -199,6 +199,9 @@ __do_fork (void *aux) {
 			succ = false;
 			break;
 		}
+		fd->file = file;
+		fd->fd = parent_fd->fd;
+		list_push_back (current->fd_table, &fd->elem);
 	}
 
 	process_init ();
