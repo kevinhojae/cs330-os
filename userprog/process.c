@@ -205,11 +205,13 @@ __do_fork (void *aux) {
 	}
 
 	process_init ();
+	sema_up (&parent->sema_load);
 
 	/* Finally, switch to the newly created process. */
 	if (succ)
 		do_iret (&if_);
 error:
+	sema_up (&parent->sema_load);
 	thread_exit ();
 }
 

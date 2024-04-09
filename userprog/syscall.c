@@ -13,6 +13,7 @@
 #include "threads/synch.h"
 #include "threads/init.h"
 #include "userprog/process.h"
+#include "lib/user/syscall.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -183,6 +184,17 @@ fork_handler (const char *thread_name, struct intr_frame *f) {
 	lock_release (&syscall_lock);
 
 	if (child_pid == TID_ERROR) {
+		return TID_ERROR;
+	}
+
+	struct thread *child_proc = get_child_process (child_pid);
+	if (child_proc == NULL) {
+		return TID_ERROR;
+	}
+
+	// wait until child process is loaded
+	sema_down (&child_proc->sema_load);
+	if (child_proc->exit_status == TID_ERROR) {
 		return TID_ERROR;
 	}
 
