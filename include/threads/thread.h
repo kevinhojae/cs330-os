@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -128,6 +129,9 @@ struct thread {
 	struct thread *parent; 			  /* Parent thread */
 	struct intr_frame parent_if;       /* Parent's intr_frame */
 
+	// NOTE: 반드시 struct semaphore *가 아닌 struct semaphore로 선언해야 함
+	// 이유는 struct semaphore *로 선언하면 sema_init() 이후 list_push_back() 또는 list_insert_ordered()에서
+	// sema_init()으로 초기화된 semaphore의 주소값이 아닌 이상한 주소값이 들어가게 되어 문제가 발생함
 	struct semaphore sema_wait; 	   /* Semaphore for waiting */
 	struct semaphore sema_load; 	   /* Semaphore for loading */
 	struct semaphore sema_exit; 	   /* Semaphore for exiting */
