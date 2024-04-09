@@ -35,7 +35,7 @@ static void close_handler (int fd);
 static struct file *get_file_from_fd_table (int fd);
 static int add_file_to_fd_table (struct file *file);
 static void validate_address (void *addr);
-static void remove_file_from_fd_table (int fd);
+static bool remove_file_from_fd_table (int fd);
 
 struct lock file_lock;
 struct lock syscall_lock;
@@ -156,15 +156,10 @@ halt_handler (void) {
 void
 exit_handler (int status) {
 	// TODO: implement kernel logic for exit
-	/*
-	// syscall-nr is 1
-	case SYS_EXIT:
-		exit (arg1);
-		break;
-	*/
 	struct thread *curr_thread = thread_current (); // 현재 쓰레드 받기
 	curr_thread-> exit_status = status; // 현재 쓰레드의 exit_status에 인수로 받은status 저장
-	printf("%s: exit(%d)\n", curr_thread->name, status); // 현재 쓰레드의 이름과 status 출력
+
+	printf("%s: exit(%d)\n", curr_thread->name, status);
 	thread_exit ();	// 현재 쓰레드 종료
 }
 
@@ -430,7 +425,10 @@ tell_handler (int fd) {
 void
 close_handler (int fd) {
 	// TODO: implement kernel logic for close
-	remove_file_from_fd_table (fd);
+	bool file_close_status = remove_file_from_fd_table (fd);
+	if (!file_close_status) {
+		exit_handler (-1);
+	}
 }
 
 /**
@@ -469,24 +467,25 @@ add_file_to_fd_table (struct file *file) {
 	return fd_elem->fd;
 }
 
-void
+bool
 remove_file_from_fd_table (int fd) {
 	struct list *fdt = thread_current ()->fd_table;
-
-	for (int i = 0; i < list_size (fdt); i++) {
-		struct fd_elem *fd_elem = list_entry (list_begin (fdt), struct fd_elem, elem);
+	
+	for (struct list_elem *e = list_begin (fdt); e != list_end (fdt); e = list_next (e)) {
+		struct fd_elem *fd_elem = list_entry (e, struct fd_elem, elem);
+		
 		if (fd_elem->fd == fd) {
-			list_remove (&fd_elem->elem);
+			list_remove (e);
 
 			lock_acquire (&file_lock);
 			file_close (fd_elem->file);
 			lock_release (&file_lock);
 
 			free (fd_elem);
-			break;
+			return true;
 		}
 	}
-	exit_handler (-1);
+	return false;
 }
 
 void
