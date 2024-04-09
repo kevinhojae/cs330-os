@@ -296,10 +296,15 @@ filesize_handler (int fd) {
 int
 read_handler (int fd, void *buffer, unsigned size) {
 	// TODO: implement kernel logic for read
-	validate_address (buffer);
+
+	unsigned int byte_counter = 0;
 
 	if (fd == 0) {
-		return input_getc();
+		for (unsigned i = 0; i < size; i++) {
+			((char *) buffer)[i] = input_getc ();
+			byte_counter++;
+		}
+		return byte_counter;
 	}
 	else if (fd < 0 || fd == NULL || fd == 1) {
 		exit_handler(-1);
@@ -311,7 +316,8 @@ read_handler (int fd, void *buffer, unsigned size) {
 		return -1; // file descriptor not found or file is not open
 	}
 
-	return file_read (file, buffer, size);
+	byte_counter = file_read (file, buffer, size);
+	return byte_counter;
 }
 
 /**
