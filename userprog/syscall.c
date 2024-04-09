@@ -358,9 +358,6 @@ read_handler (int fd, void *buffer, unsigned size) {
  */
 int
 write_handler (int fd, const void *buffer, unsigned size) {
-	struct lock *file_lock;
-	// TODO: implement kernel logic for write
-
 	validate_address_range (buffer, size);
 
 	// write to console
