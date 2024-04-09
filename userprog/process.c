@@ -84,17 +84,7 @@ process_fork(const char *name, struct intr_frame *if_ UNUSED)
 	struct thread *cur = thread_current();
 	memcpy(&cur->parent_if, if_, sizeof(struct intr_frame));
 
-	tid_t pid = thread_create(name, PRI_DEFAULT, __do_fork, cur);
-	if (pid == TID_ERROR)
-		return TID_ERROR;
-
-	struct thread *child = get_child_process(pid);
-
-	if (child->exit_status == TID_ERROR) {
-		return TID_ERROR;
-	}
-
-	return pid;
+	return thread_create(name, PRI_DEFAULT, __do_fork, cur);
 }
 
 #ifndef VM
