@@ -313,11 +313,13 @@ read_handler (int fd, void *buffer, unsigned size) {
 	}
 	else if (fd < 0 || fd == NULL || fd == 1) {
 		exit_handler(-1);
+		return -1;
 	}
 
 	// find file from file descriptor table
 	struct file *file = get_file_from_fd_table (fd);
 	if (file == NULL) {
+		exit_handler(-1);
 		return -1; // file descriptor not found or file is not open
 	}
 
@@ -343,6 +345,10 @@ write_handler (int fd, const void *buffer, unsigned size) {
 		putbuf (buffer, size);
 		lock_release (&syscall_lock);
 		return size;
+	}
+	else if (fd == 0){
+		exit_handler(-1);
+		return -1;
 	}
 
 	// TODO: write to file
