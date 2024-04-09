@@ -177,7 +177,16 @@ exit_handler (int status) {
  */
 int
 fork_handler (const char *thread_name, struct intr_frame *f) {
-	return process_fork (thread_name, f);
+	// fork는 메모리를 복사하는 과정이기에 syscall_lock을 사용
+	lock_acquire (&syscall_lock);
+	pid_t child_pid = process_fork (thread_name, f);
+	lock_release (&syscall_lock);
+
+	if (child_pid == TID_ERROR) {
+		return TID_ERROR;
+	}
+
+	return child_pid;
 }
 
 /**
