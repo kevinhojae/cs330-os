@@ -253,6 +253,10 @@ thread_create (const char *name, int priority,
 	list_init(t->fd_table);
 	#endif
 
+
+	// fork시 thread_current()는 parent thread
+	// t는 새로 생성되는 child thread
+	t->parent = thread_current ();
 	list_push_back (&thread_current ()->child_list, &t->child_elem); // add to the child list of the parent thread
 
 	/* Add to run queue. */
