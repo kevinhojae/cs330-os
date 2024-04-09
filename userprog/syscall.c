@@ -264,7 +264,9 @@ open_handler (const char *file_name) {
 	validate_address (file_name);
 
 	// open file from file system
+	lock_acquire (&file_lock);
 	struct file *file = filesys_open (file_name);
+	lock_release (&file_lock);
 
 	// if file is not found, return -1
 	if (file == NULL) {
@@ -323,7 +325,9 @@ read_handler (int fd, void *buffer, unsigned size) {
 		return -1; // file descriptor not found or file is not open
 	}
 
+	lock_acquire (&file_lock);
 	byte_counter = file_read (file, buffer, size);
+	lock_release (&file_lock);
 	return byte_counter;
 }
 
