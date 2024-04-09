@@ -147,7 +147,6 @@ __do_fork (void *aux) {
 	// parent_if의 정보를 if_에 복사
 	// if_는 현재 프로세스의 intr_frame 구조체로, 현재 프로세스의 정보를 저장
 	memcpy (&if_, parent_if, sizeof (struct intr_frame));
-	// if_.R.rax = 0; // 자식 프로세스의 리턴값을 0으로 초기화
 
 	/* 2. Duplicate PT */
 	// 현재 프로세스의 pml4를 생성, pml4란 page map level 4의 약자로 64비트 주소 공간을 512개의 페이지 테이블로 나누어 관리하는 방식
@@ -176,33 +175,32 @@ __do_fork (void *aux) {
 	/* 3. Duplicate the file descriptor table. */
 	// file_duplicate 함수를 통해 parent의 file descriptor table을 복사
 	for (struct list_elem *e = list_begin (parent->fd_table); e != list_end (parent->fd_table); e = list_next (e)) {
-		struct fd_elem *parent_fd = list_entry (e, struct fd_elem, elem);
-		struct file *file = file_duplicate (parent_fd->file);
+		struct fd_elem *parent_fd_elem = list_entry (e, struct fd_elem, elem);
+		struct file *file = file_duplicate (parent_fd_elem->file);
 		if (file == NULL) {
-			succ = false;
-			break;
+			goto error;
 		}
 
-		struct fd_elem *fd = malloc (sizeof (struct fd_elem));
-		if (fd == NULL) {
-			file_close (file);
-			succ = false;
-			break;
+		struct fd_elem *child_fd_elem = malloc (sizeof (struct fd_elem));
+		if (child_fd_elem == NULL) {
+			goto error;
 		}
-		fd->file = file;
-		fd->fd = parent_fd->fd;
-		list_push_back (current->fd_table, &fd->elem);
+		child_fd_elem->file = file;
+		child_fd_elem->fd = parent_fd_elem->fd;
+		list_push_back (current->fd_table, &child_fd_elem->elem);
 	}
 
 	process_init ();
-	sema_up (&parent->sema_load);
+
+	if_.R.rax = 0; // 자식 프로세스의 리턴값을 0으로 초기화
+	sema_up (&current->sema_load);
 
 	/* Finally, switch to the newly created process. */
 	if (succ)
 		do_iret (&if_);
 error:
 	current->exit_status = TID_ERROR;
-	sema_up (&parent->sema_load);
+	sema_up (&current->sema_load);
 	thread_exit ();
 }
 
