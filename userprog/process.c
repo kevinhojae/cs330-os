@@ -109,7 +109,7 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 
 	/* 3. TODO: Allocate new PAL_USER page for the child and set result to
 	 *    TODO: NEWPAGE. */
-	newpage = palloc_get_page (PAL_USER | PAL_ZERO);
+	newpage = palloc_get_page (PAL_USER);
 	if (newpage == NULL)
 		return false;
 

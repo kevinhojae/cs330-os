@@ -799,7 +799,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->recent_cpu = 0;
 
 #ifdef USERPROG
-	t->exit_status = 0;
+	// t->exit_status = 0;
 	list_init(&t->child_list); // initialize the child list
 	sema_init(&t->sema_wait, 0); // initialize the semaphore for waiting
 	sema_init(&t->sema_load, 0); // initialize the semaphore for child process fork and loads
