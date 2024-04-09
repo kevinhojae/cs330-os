@@ -298,6 +298,7 @@ filesize_handler (int fd) {
 int
 read_handler (int fd, void *buffer, unsigned size) {
 	// TODO: implement kernel logic for read
+	validate_address_range (buffer, size);
 
 	unsigned int byte_counter = 0;
 
@@ -334,7 +335,7 @@ write_handler (int fd, const void *buffer, unsigned size) {
 	struct lock *file_lock;
 	// TODO: implement kernel logic for write
 
-	validate_address (buffer);
+	validate_address_range (buffer,size);
 
 	// write to console
 	if (fd == 1) {
