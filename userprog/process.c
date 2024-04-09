@@ -321,7 +321,7 @@ process_exit (void) {
 	// 	- process_wait에서 자식 thread를 찾아서 status를 받고, child list에서 제거한 후 sema_up(&child->sema_exit)를 실행한다.
 	// 	- process sema_up(&curr->sema_wait)가 실행되어 자식 thread의 sema_down(&curr->sema_exit)가 풀리게 된다.
 	// 	- sema_down(&curr->sema_exit)은 이러한 모든 정리 작업이 끝나고, 자식 프로세스가 시스템에서 안전하게 제거될 수 있도록 하는 마지막 단계에서 호출된다.
-	// 	- 이렇게 하면 부모 프로세스가 자식 프로세스의 종료를 올바르게 대기하고, 자식 프로세스의 자원이 모두 해제된 후에 다음 단계를 진행할 수 있습니다. 만약 sema_down(&curr->sema_exit)을 함수의 시작 부분에 두었다면, 자식 프로세스가 자원을 제대로 정리하지 않은 상태에서 부모 프로세스가 진행되는 문제가 발생할 수 있습니다.
+	// 	- 이렇게 하면 부모 프로세스가 자식 프로세스의 종료를 올바르게 대기하고, 자식 프로세스의 자원이 모두 해제된 후에 다음 단계를 진행할 수 있음. 만약 sema_down(&curr->sema_exit)을 함수의 시작 부분에 두었다면, 자식 프로세스가 자원을 제대로 정리하지 않은 상태에서 부모 프로세스가 진행되는 문제가 발생할 수 있다.
 	sema_down(&curr->sema_exit);
 }
 

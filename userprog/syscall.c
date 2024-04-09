@@ -76,15 +76,6 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	// printf ("system call!\n");
 
 	// 1. Extract system call number and arguments from f->RAX and other registers.
-	// when the system call handler syscall_handler() gets control, the system call number is in the rax, and arguments are passed with the order %rdi, %rsi, %rdx, %r10, %r8, and %r9.
-	// int syscall_number = f->R.rax;
-	// int arg1 = f->R.rdi;
-	// int arg2 = f->R.rsi;
-	// int arg3 = f->R.rdx;
-	// int arg4 = f->R.r10;
-	// int arg5 = f->R.r8;
-	// int arg6 = f->R.r9;
-
 	// 2. Switch based on system call number to handle different system calls.
 	// 3. For system calls involving user pointers, validate pointers before proceeding.
 	// 4. Perform the requested operation, which may involve interacting with the file system, process management, or memory management subsystems.
@@ -145,7 +136,6 @@ syscall_handler (struct intr_frame *f UNUSED) {
  */
 void
 halt_handler (void) {
-	// TODO: implement kernel logic for halt
 	power_off ();
 }
 
@@ -155,7 +145,6 @@ halt_handler (void) {
  */
 void
 exit_handler (int status) {
-	// TODO: implement kernel logic for exit
 	struct thread *curr_thread = thread_current (); // 현재 쓰레드 받기
 	curr_thread-> exit_status = status; // 현재 쓰레드의 exit_status에 인수로 받은status 저장
 
@@ -235,7 +224,6 @@ exec_handler (const char *cmd_line) {
  */
 int
 wait_handler (int pid) {
-	// TODO: implement kernel logic for wait
 	return process_wait ((tid_t) pid);
 }
 
@@ -245,7 +233,6 @@ wait_handler (int pid) {
  */
 bool
 create_handler (const char *file, unsigned initial_size) {
-	// TODO: implement kernel logic for create
 	validate_address (file);
 
 	if (file == NULL) { // file이 NULL이면 종료
@@ -260,7 +247,6 @@ create_handler (const char *file, unsigned initial_size) {
  */
 bool
 remove_handler (const char *file) {
-	// TODO: implement kernel logic for remove
 	validate_address(file);
 	if (file == NULL) { // file이 NULL이면 종료
 		return false;
@@ -276,7 +262,6 @@ remove_handler (const char *file) {
  */
 int
 open_handler (const char *file_name) {
-	// TODO: implement kernel logic for open
 	validate_address (file_name);
 
 	// open file from file system
@@ -298,7 +283,6 @@ open_handler (const char *file_name) {
  */
 int
 filesize_handler (int fd) {
-	// TODO: implement kernel logic for filesize
 	struct file *file = get_file_from_fd_table (fd);
 	if (file == NULL) {
 		return -1; // file descriptor not found or file is not open
@@ -313,7 +297,6 @@ filesize_handler (int fd) {
  */
 int
 read_handler (int fd, void *buffer, unsigned size) {
-	// TODO: implement kernel logic for read
 	validate_address_range (buffer, size);
 
 	unsigned int byte_counter = 0;
@@ -375,7 +358,6 @@ write_handler (int fd, const void *buffer, unsigned size) {
 		return -1;
 	}
 
-	// TODO: write to file
 	struct file *file = get_file_from_fd_table (fd);
 
 	if (file != NULL) {
@@ -392,8 +374,6 @@ write_handler (int fd, const void *buffer, unsigned size) {
  */
 void
 seek_handler (int fd, unsigned position) {
-	// TODO: implement kernel logic for seek
-
 	struct file *file = get_file_from_fd_table (fd);
 	if (file == NULL) {
 		return; // file descriptor not found or file is not open
@@ -407,7 +387,6 @@ seek_handler (int fd, unsigned position) {
  */
 unsigned
 tell_handler (int fd) {
-	// TODO: implement kernel logic for tell
 	struct file *file = get_file_from_fd_table (fd);
 	if (file == NULL) {
 		return -1; // file descriptor not found or file is not open
@@ -421,7 +400,6 @@ tell_handler (int fd) {
  */
 void
 close_handler (int fd) {
-	// TODO: implement kernel logic for close
 	bool file_close_status = remove_file_from_fd_table (fd);
 	if (!file_close_status) {
 		exit_handler (-1);
