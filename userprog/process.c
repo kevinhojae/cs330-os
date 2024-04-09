@@ -252,14 +252,15 @@ process_wait (tid_t child_tid UNUSED) {
 	 * XXX:       implementing the process_wait. */
 
 	struct thread *curr_thread = thread_current ();
+	int status = 0;
 
 	for (struct list_elem *e = list_begin (&curr_thread->child_list); e != list_end (&curr_thread->child_list); e = list_next (e)) {
 		struct thread *child = list_entry (e, struct thread, child_elem);
 
 		if (child->tid == child_tid) {
 			sema_down (&child->sema_wait); // wait for child to exit
-			list_remove (e);
-			int status = child->exit_status; // 0 for success, -1 for fail
+			status = child->exit_status; // 0 for success, -1 for fail
+			list_remove (&child->child_elem);
 			sema_up (&child->sema_exit); // trigger process exit
 			return status;
 		}
@@ -284,7 +285,44 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
-	process_cleanup ();
+	struct fd_elem *fd_table_row = NULL;
+	struct thread *child = NULL;
+
+	// Close all files and free the file descriptor elem
+	while (!list_empty(curr->fd_table)) {
+		fd_table_row = list_entry(list_pop_front(curr->fd_table), struct fd_elem, elem);
+		file_close(fd_table_row->file);
+		free(fd_table_row);
+	}
+
+	// Free the file descriptor table
+	free(curr->fd_table);
+
+	// For child list of the current thread, if the child's parent is the current thread, set the parent to NULL and up the sema_exit
+	while (!list_empty(&curr->child_list)) {
+		child = list_entry(list_pop_front(&curr->child_list), struct thread, elem);
+		if (child->parent == curr) {
+			child->parent = NULL;
+			sema_up(&child->sema_exit); // to trigger process exit
+		}
+	}
+	process_cleanup(); // Free the current process's resources
+
+	// To trigger process wait, up the sema_wait
+	// When process wait is triggered, it will remove the child from the child list and return the exit status
+	sema_up(&curr->sema_wait);
+
+	// Wait for the parent to trigger process exit
+	// 여기서 sema_down이 process_exit의 맨 아래에 있는 이유가 중요하다.
+	// process_exit이 실행되는 thread가 자식 thread일 경우
+	// 	- 본인의 child_list가 없기 때문에 sema_up(&child->sema_exit)가 실행되지 않는다.
+	// 	- 따라서 자식 thread는 본인의 리소스만 정리하고, sema_down(&curr->sema_exit)에서 무한 대기 상태에 빠지게 된다.
+	// process_exit이 실행되는 thread가 부모 thread일 경우
+	// 	- process_wait에서 자식 thread를 찾아서 status를 받고, child list에서 제거한 후 sema_up(&child->sema_exit)를 실행한다.
+	// 	- process sema_up(&curr->sema_wait)가 실행되어 자식 thread의 sema_down(&curr->sema_exit)가 풀리게 된다.
+	// 	- sema_down(&curr->sema_exit)은 이러한 모든 정리 작업이 끝나고, 자식 프로세스가 시스템에서 안전하게 제거될 수 있도록 하는 마지막 단계에서 호출된다.
+	// 	- 이렇게 하면 부모 프로세스가 자식 프로세스의 종료를 올바르게 대기하고, 자식 프로세스의 자원이 모두 해제된 후에 다음 단계를 진행할 수 있습니다. 만약 sema_down(&curr->sema_exit)을 함수의 시작 부분에 두었다면, 자식 프로세스가 자원을 제대로 정리하지 않은 상태에서 부모 프로세스가 진행되는 문제가 발생할 수 있습니다.
+	sema_down(&curr->sema_exit);
 }
 
 /* Free the current process's resources. */
