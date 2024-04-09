@@ -387,38 +387,55 @@ close_handler (int fd) {
  */
 struct file *
 get_file_from_fd_table (int fd) {
-	struct file **fdt = thread_current ()->fd_table;
+	struct list fdt = thread_current ()->fd_table;
 
-	if (fd < FD_BASE || fd >= FD_LIMIT) {
-		return NULL;
+	for (struct list_elem *e = list_begin (&fdt); e != list_end (&fdt); e = list_next (e)) {
+		struct fd_elem *fd_elem = list_entry (e, struct fd_elem, elem);
+		if (fd_elem->fd == fd) {
+			return fd_elem->file;
+		}
 	}
 
-	return fdt[fd];
+	return NULL;
 }
 
 int
 add_file_to_fd_table (struct file *file) {
-	struct file **fdt = thread_current ()->fd_table;
+	struct thread *curr_thread = thread_current ();
+	struct list fdt = curr_thread->fd_table;
 
-	for (int fd = FD_BASE; fd < FD_LIMIT; fd++) {
-		if (fdt[fd] == NULL) {
-			fdt[fd] = file;
-			return fd;
-		}
+	struct fd_elem *fd_elem = malloc (sizeof (struct fd_elem));
+	if (fd_elem == NULL) {
+		return -1;
 	}
 
-	return -1;
+	fd_elem->fd = curr_thread->next_fd;
+	fd_elem->file = file;
+	curr_thread->next_fd++;
+
+	list_push_back (&fdt, &fd_elem->elem);
+
+	return fd_elem->fd;
 }
 
 void
 remove_file_from_fd_table (int fd) {
-	struct file **fdt = thread_current ()->fd_table;
+	struct list fdt = thread_current ()->fd_table;
 
-	if (fd < FD_BASE || fd >= FD_LIMIT) {
-		return;
+	for (int i = 0; i < list_size (&fdt); i++) {
+		struct fd_elem *fd_elem = list_entry (list_begin (&fdt), struct fd_elem, elem);
+		if (fd_elem->fd == fd) {
+			list_remove (&fd_elem->elem);
+
+			lock_acquire (&file_lock);
+			file_close (fd_elem->file);
+			lock_release (&file_lock);
+
+			free (fd_elem);
+			break;
+		}
 	}
-
-	fdt[fd] = NULL;
+	exit_handler (-1);
 }
 
 void

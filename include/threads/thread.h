@@ -116,14 +116,22 @@ struct thread {
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
+	
 	int exit_status;                    /* syscall - Exit status, 0 is success and -1 is fail */
-	struct file **fd_table;             /* File descriptor table */
-	struct intr_frame parent_if;       /* Parent's intr_frame */
+
+	struct list fd_table;             /* File descriptor table */
+	int next_fd;                      /* Next file descriptor */
+
 	struct list child_list; 		   /* List of child threads */
 	struct list_elem child_elem; 	   /* List element for child threads */
+
 	struct thread *parent; 			  /* Parent thread */
-	bool is_waiting; 				  /* Whether process_wait is called */
-	struct semaphore * sema_wait; 	   /* Semaphore for waiting */
+	struct intr_frame parent_if;       /* Parent's intr_frame */
+
+	struct semaphore sema_wait; 	   /* Semaphore for waiting */
+	struct semaphore sema_load; 	   /* Semaphore for loading */
+	struct semaphore sema_exit; 	   /* Semaphore for exiting */
+
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
@@ -135,7 +143,7 @@ struct thread {
 	unsigned magic;                     /* Detects stack overflow. */
 };
 
-struct file_descriptor {
+struct fd_elem {
 	int fd;
 	struct file *file;
 	struct list_elem elem;
