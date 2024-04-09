@@ -300,14 +300,21 @@ filesize_handler (int fd) {
 int
 read_handler (int fd, void *buffer, unsigned size) {
 	// TODO: implement kernel logic for read
+
+	// read를 buffer pointer 위치에서 size만큼 읽기에 유효 주소를 해당 범위에 대해 살펴준다.
 	validate_address_range (buffer, size);
 
 	unsigned int byte_counter = 0;
 
 	if (fd == 0) {
+		// 해당 과정이 I/O device와의 interaction이기에 syscall_lock
 		lock_acquire (&syscall_lock);
+		// size만큼 buffer에 입력받는 과정을 반복
 		for (unsigned i = 0; i < size; i++) {
+			// keyboard에서 입력받은 key(1 byte->char형)를 받아와서 buffer에 저장
+			// buffer는 사용자가 입력한 key를 저장하는 공간으로 array.
 			((char *) buffer)[i] = input_getc ();
+			//1번 반복하면서 byte_counter 크기를 키워준다.
 			byte_counter++;
 		}
 		lock_release (&syscall_lock);
@@ -325,6 +332,7 @@ read_handler (int fd, void *buffer, unsigned size) {
 		return -1; // file descriptor not found or file is not open
 	}
 
+	// file_read -> file_lock
 	lock_acquire (&file_lock);
 	byte_counter = file_read (file, buffer, size);
 	lock_release (&file_lock);
@@ -341,17 +349,21 @@ write_handler (int fd, const void *buffer, unsigned size) {
 	struct lock *file_lock;
 	// TODO: implement kernel logic for write
 
+	// write를 buffer pointer 위치에서 size만큼 읽기에 유효 주소를 해당 범위에 대해 살펴준다.
 	validate_address_range (buffer,size);
 
 	// write to console
 	if (fd == 1) {
+		// console에 출력(I/O)하는 과정이기에 syscall_lock
 		lock_acquire (&syscall_lock);
 		putbuf (buffer, size);
 		lock_release (&syscall_lock);
 		return size;
 	}
 	else if (fd == 0){
+		// fd == 0은 read. 종료시킨다.
 		exit_handler(-1);
+		// int형 반환을 위해 -1 반환
 		return -1;
 	}
 
