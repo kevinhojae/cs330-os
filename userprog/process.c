@@ -185,12 +185,19 @@ __do_fork (void *aux) {
 	 * TODO:       the resources of parent.*/
 	/* 3. Duplicate the file descriptor table. */
 	// file_duplicate 함수를 통해 parent의 file descriptor table을 복사
-	for (int i = FD_BASE; i < FD_LIMIT; i++) {
-		if (parent->fd_table[i] != NULL) {
-			current->fd_table[i] = file_duplicate (parent->fd_table[i]);
-			if (current->fd_table[i] == NULL) {
-				goto error;
-			}
+	for (struct list_elem *e = list_begin (&parent->fd_table); e != list_end (&parent->fd_table); e = list_next (e)) {
+		struct fd_elem *parent_fd = list_entry (e, struct fd_elem, elem);
+		struct file *file = file_duplicate (parent_fd->file);
+		if (file == NULL) {
+			succ = false;
+			break;
+		}
+
+		struct fd_elem *fd = malloc (sizeof (struct fd_elem));
+		if (fd == NULL) {
+			file_close (file);
+			succ = false;
+			break;
 		}
 	}
 
