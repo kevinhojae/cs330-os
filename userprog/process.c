@@ -211,6 +211,7 @@ __do_fork (void *aux) {
 	if (succ)
 		do_iret (&if_);
 error:
+	current->exit_status = TID_ERROR;
 	sema_up (&parent->sema_load);
 	thread_exit ();
 }
@@ -262,35 +263,28 @@ process_wait (tid_t child_tid UNUSED) {
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
 
-	// struct thread *curr_thread = thread_current();
+	struct thread *curr_thread = thread_current ();
 
-    // struct thread *child_proc = NULL;
-    // struct list_elem *e;
-    // for (e = list_begin(&curr_thread->child_list); e != list_end(&curr_thread->child_list); e = list_next(e)) {
-    //     child_proc = list_entry(e, struct thread, child_elem);
-    //     if (child_proc->tid == child_tid) {
-    //         if (child_proc->is_waiting) {
-    //             return -1; // 이미 wait가 호출됨
-    //         }
-    //         child_proc->is_waiting = true;
+	for (struct list_elem *e = list_begin (&curr_thread->child_list); e != list_end (&curr_thread->child_list); e = list_next (e)) {
+		struct thread *child = list_entry (e, struct thread, child_elem);
 
-	// 		sema_down(&child_proc->sema_wait); // 자식 프로세스의 종료를 기다림
-
-    //         int status = child_proc->exit_status;
-    //         list_remove(e);
-    //         free(child_proc);
-    //         return status;
-    //     }
-    // }
-    // return -1; // 자식 프로세스가 없음
+		if (child->tid == child_tid) {
+			sema_down (&child->sema_wait); // wait for child to exit
+			list_remove (e);
+			int status = child->exit_status; // 0 for success, -1 for fail
+			sema_up (&child->sema_exit); // trigger process exit
+			return status;
+		}
+	}
+	return -1;
 
 	// for make test, wait for 5 seconds
 	// timer_sleep (2 * TIMER_FREQ);
 
 	// for debug, infinite loop
-	while (1) { 
-		timer_sleep (TIMER_FREQ);
-	}
+	// while (1) { 
+	// 	timer_sleep (TIMER_FREQ);
+	// }
 }
 
 /* Exit the process. This function is called by thread_exit (). */
