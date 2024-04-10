@@ -242,13 +242,21 @@ thread_create (const char *name, int priority,
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
 
-	t->fd_table = palloc_get_multiple(PAL_ZERO, FD_BASE);
+	// Initialize fd table
+	#ifdef USERPROG
+	t->fd_table = (struct list*) malloc(sizeof(struct list));
 	if (t->fd_table == NULL) {
 		return TID_ERROR;
 	}
-	t->fd_table[0] = 1; // stdin
-	t->fd_table[1] = 2; // stdout	
 
+	t->next_fd = 2; // 0, 1 is reserved for stdin, stdout
+	list_init(t->fd_table);
+	#endif
+
+
+	// fork시 thread_current()는 parent thread
+	// t는 새로 생성되는 child thread
+	t->parent = thread_current ();
 	list_push_back (&thread_current ()->child_list, &t->child_elem); // add to the child list of the parent thread
 
 	/* Add to run queue. */
@@ -791,10 +799,11 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->recent_cpu = 0;
 
 #ifdef USERPROG
-	t->exit_status = 0;
-	list_init(&t->child_list);
-	sema_init(&t->sema_wait, 0);
-	t->is_waiting = false;
+	// t->exit_status = 0;
+	list_init(&t->child_list); // initialize the child list
+	sema_init(&t->sema_wait, 0); // initialize the semaphore for waiting
+	sema_init(&t->sema_load, 0); // initialize the semaphore for child process fork and loads
+	sema_init(&t->sema_exit, 0); // initialize the semaphore for exit
 #endif
 }
 

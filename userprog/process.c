@@ -84,17 +84,7 @@ process_fork(const char *name, struct intr_frame *if_ UNUSED)
 	struct thread *cur = thread_current();
 	memcpy(&cur->parent_if, if_, sizeof(struct intr_frame));
 
-	tid_t pid = thread_create(name, PRI_DEFAULT, __do_fork, cur);
-	if (pid == TID_ERROR)
-		return TID_ERROR;
-
-	struct thread *child = get_child_process(pid);
-
-	if (child->exit_status == TID_ERROR) {
-		return TID_ERROR;
-	}
-
-	return pid;
+	return thread_create(name, PRI_DEFAULT, __do_fork, cur);
 }
 
 #ifndef VM
@@ -119,7 +109,7 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 
 	/* 3. TODO: Allocate new PAL_USER page for the child and set result to
 	 *    TODO: NEWPAGE. */
-	newpage = palloc_get_page (PAL_USER | PAL_ZERO);
+	newpage = palloc_get_page (PAL_USER);
 	if (newpage == NULL)
 		return false;
 
@@ -157,7 +147,6 @@ __do_fork (void *aux) {
 	// parent_if의 정보를 if_에 복사
 	// if_는 현재 프로세스의 intr_frame 구조체로, 현재 프로세스의 정보를 저장
 	memcpy (&if_, parent_if, sizeof (struct intr_frame));
-	// if_.R.rax = 0; // 자식 프로세스의 리턴값을 0으로 초기화
 
 	/* 2. Duplicate PT */
 	// 현재 프로세스의 pml4를 생성, pml4란 page map level 4의 약자로 64비트 주소 공간을 512개의 페이지 테이블로 나누어 관리하는 방식
@@ -185,21 +174,33 @@ __do_fork (void *aux) {
 	 * TODO:       the resources of parent.*/
 	/* 3. Duplicate the file descriptor table. */
 	// file_duplicate 함수를 통해 parent의 file descriptor table을 복사
-	for (int i = FD_BASE; i < FD_LIMIT; i++) {
-		if (parent->fd_table[i] != NULL) {
-			current->fd_table[i] = file_duplicate (parent->fd_table[i]);
-			if (current->fd_table[i] == NULL) {
-				goto error;
-			}
+	for (struct list_elem *e = list_begin (parent->fd_table); e != list_end (parent->fd_table); e = list_next (e)) {
+		struct fd_elem *parent_fd_elem = list_entry (e, struct fd_elem, elem);
+		struct file *file = file_duplicate (parent_fd_elem->file);
+		if (file == NULL) {
+			goto error;
 		}
+
+		struct fd_elem *child_fd_elem = malloc (sizeof (struct fd_elem));
+		if (child_fd_elem == NULL) {
+			goto error;
+		}
+		child_fd_elem->file = file;
+		child_fd_elem->fd = parent_fd_elem->fd;
+		list_push_back (current->fd_table, &child_fd_elem->elem);
 	}
 
 	process_init ();
+
+	if_.R.rax = 0; // 자식 프로세스의 리턴값을 0으로 초기화
+	sema_up (&current->sema_load);
 
 	/* Finally, switch to the newly created process. */
 	if (succ)
 		do_iret (&if_);
 error:
+	current->exit_status = TID_ERROR;
+	sema_up (&current->sema_load);
 	thread_exit ();
 }
 
@@ -250,35 +251,29 @@ process_wait (tid_t child_tid UNUSED) {
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
 
-	// struct thread *curr_thread = thread_current();
+	struct thread *curr_thread = thread_current ();
+	int status = 0;
 
-    // struct thread *child_proc = NULL;
-    // struct list_elem *e;
-    // for (e = list_begin(&curr_thread->child_list); e != list_end(&curr_thread->child_list); e = list_next(e)) {
-    //     child_proc = list_entry(e, struct thread, child_elem);
-    //     if (child_proc->tid == child_tid) {
-    //         if (child_proc->is_waiting) {
-    //             return -1; // 이미 wait가 호출됨
-    //         }
-    //         child_proc->is_waiting = true;
+	for (struct list_elem *e = list_begin (&curr_thread->child_list); e != list_end (&curr_thread->child_list); e = list_next (e)) {
+		struct thread *child = list_entry (e, struct thread, child_elem);
 
-	// 		sema_down(&child_proc->sema_wait); // 자식 프로세스의 종료를 기다림
-
-    //         int status = child_proc->exit_status;
-    //         list_remove(e);
-    //         free(child_proc);
-    //         return status;
-    //     }
-    // }
-    // return -1; // 자식 프로세스가 없음
+		if (child->tid == child_tid) {
+			sema_down (&child->sema_wait); // wait for child to exit
+			status = child->exit_status; // 0 for success, -1 for fail
+			list_remove (&child->child_elem);
+			sema_up (&child->sema_exit); // trigger process exit
+			return status;
+		}
+	}
+	return -1;
 
 	// for make test, wait for 5 seconds
 	// timer_sleep (2 * TIMER_FREQ);
 
 	// for debug, infinite loop
-	while (1) { 
-		timer_sleep (TIMER_FREQ);
-	}
+	// while (1) { 
+	// 	timer_sleep (TIMER_FREQ);
+	// }
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -290,7 +285,44 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
-	process_cleanup ();
+	struct fd_elem *fd_table_row = NULL;
+	struct thread *child = NULL;
+
+	// Close all files and free the file descriptor elem
+	while (!list_empty(curr->fd_table)) {
+		fd_table_row = list_entry(list_pop_front(curr->fd_table), struct fd_elem, elem);
+		file_close(fd_table_row->file);
+		free(fd_table_row);
+	}
+
+	// Free the file descriptor table
+	free(curr->fd_table);
+
+	// For child list of the current thread, if the child's parent is the current thread, set the parent to NULL and up the sema_exit
+	while (!list_empty(&curr->child_list)) {
+		child = list_entry(list_pop_front(&curr->child_list), struct thread, elem);
+		if (child->parent == curr) {
+			child->parent = NULL;
+			sema_up(&child->sema_exit); // to trigger process exit
+		}
+	}
+	process_cleanup(); // Free the current process's resources
+
+	// To trigger process wait, up the sema_wait
+	// When process wait is triggered, it will remove the child from the child list and return the exit status
+	sema_up(&curr->sema_wait);
+
+	// Wait for the parent to trigger process exit
+	// 여기서 sema_down이 process_exit의 맨 아래에 있는 이유가 중요하다.
+	// process_exit이 실행되는 thread가 자식 thread일 경우
+	// 	- 본인의 child_list가 없기 때문에 sema_up(&child->sema_exit)가 실행되지 않는다.
+	// 	- 따라서 자식 thread는 본인의 리소스만 정리하고, sema_down(&curr->sema_exit)에서 무한 대기 상태에 빠지게 된다.
+	// process_exit이 실행되는 thread가 부모 thread일 경우
+	// 	- process_wait에서 자식 thread를 찾아서 status를 받고, child list에서 제거한 후 sema_up(&child->sema_exit)를 실행한다.
+	// 	- process sema_up(&curr->sema_wait)가 실행되어 자식 thread의 sema_down(&curr->sema_exit)가 풀리게 된다.
+	// 	- sema_down(&curr->sema_exit)은 이러한 모든 정리 작업이 끝나고, 자식 프로세스가 시스템에서 안전하게 제거될 수 있도록 하는 마지막 단계에서 호출된다.
+	// 	- 이렇게 하면 부모 프로세스가 자식 프로세스의 종료를 올바르게 대기하고, 자식 프로세스의 자원이 모두 해제된 후에 다음 단계를 진행할 수 있음. 만약 sema_down(&curr->sema_exit)을 함수의 시작 부분에 두었다면, 자식 프로세스가 자원을 제대로 정리하지 않은 상태에서 부모 프로세스가 진행되는 문제가 발생할 수 있다.
+	sema_down(&curr->sema_exit);
 }
 
 /* Free the current process's resources. */

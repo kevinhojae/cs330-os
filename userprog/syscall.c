@@ -13,6 +13,7 @@
 #include "threads/synch.h"
 #include "threads/init.h"
 #include "userprog/process.h"
+#include "lib/user/syscall.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -34,9 +35,10 @@ static void close_handler (int fd);
 static struct file *get_file_from_fd_table (int fd);
 static int add_file_to_fd_table (struct file *file);
 static void validate_address (void *addr);
-static void remove_file_from_fd_table (int fd);
+static bool remove_file_from_fd_table (int fd);
 
 struct lock file_lock;
+struct lock syscall_lock;
 
 /* System call.
  *
@@ -64,6 +66,7 @@ syscall_init (void) {
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
 
 	lock_init(&file_lock);
+	lock_init(&syscall_lock);
 }
 
 /* The main system call interface */
@@ -73,15 +76,6 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	// printf ("system call!\n");
 
 	// 1. Extract system call number and arguments from f->RAX and other registers.
-	// when the system call handler syscall_handler() gets control, the system call number is in the rax, and arguments are passed with the order %rdi, %rsi, %rdx, %r10, %r8, and %r9.
-	// int syscall_number = f->R.rax;
-	// int arg1 = f->R.rdi;
-	// int arg2 = f->R.rsi;
-	// int arg3 = f->R.rdx;
-	// int arg4 = f->R.r10;
-	// int arg5 = f->R.r8;
-	// int arg6 = f->R.r9;
-
 	// 2. Switch based on system call number to handle different system calls.
 	// 3. For system calls involving user pointers, validate pointers before proceeding.
 	// 4. Perform the requested operation, which may involve interacting with the file system, process management, or memory management subsystems.
@@ -142,7 +136,6 @@ syscall_handler (struct intr_frame *f UNUSED) {
  */
 void
 halt_handler (void) {
-	// TODO: implement kernel logic for halt
 	power_off ();
 }
 
@@ -152,16 +145,10 @@ halt_handler (void) {
  */
 void
 exit_handler (int status) {
-	// TODO: implement kernel logic for exit
-	/*
-	// syscall-nr is 1
-	case SYS_EXIT:
-		exit (arg1);
-		break;
-	*/
 	struct thread *curr_thread = thread_current (); // 현재 쓰레드 받기
 	curr_thread-> exit_status = status; // 현재 쓰레드의 exit_status에 인수로 받은status 저장
-	printf("%s: exit(%d)\n", curr_thread->name, status); // 현재 쓰레드의 이름과 status 출력
+
+	printf("%s: exit(%d)\n", curr_thread->name, status);
 	thread_exit ();	// 현재 쓰레드 종료
 }
 
@@ -175,7 +162,27 @@ exit_handler (int status) {
  */
 int
 fork_handler (const char *thread_name, struct intr_frame *f) {
-	return process_fork (thread_name, f);
+	// fork는 메모리를 복사하는 과정이기에 syscall_lock을 사용
+	lock_acquire (&syscall_lock);
+	pid_t child_pid = process_fork (thread_name, f);
+	lock_release (&syscall_lock);
+
+	if (child_pid == TID_ERROR) {
+		return TID_ERROR;
+	}
+
+	struct thread *child_proc = get_child_process (child_pid);
+	if (child_proc == NULL) {
+		return TID_ERROR;
+	}
+
+	// wait until child process is loaded
+	sema_down (&child_proc->sema_load);
+	if (child_proc->exit_status == TID_ERROR) {
+		return TID_ERROR;
+	}
+
+	return child_pid;
 }
 
 /**
@@ -217,7 +224,6 @@ exec_handler (const char *cmd_line) {
  */
 int
 wait_handler (int pid) {
-	// TODO: implement kernel logic for wait
 	return process_wait ((tid_t) pid);
 }
 
@@ -227,7 +233,6 @@ wait_handler (int pid) {
  */
 bool
 create_handler (const char *file, unsigned initial_size) {
-	// TODO: implement kernel logic for create
 	validate_address (file);
 
 	if (file == NULL) { // file이 NULL이면 종료
@@ -242,7 +247,6 @@ create_handler (const char *file, unsigned initial_size) {
  */
 bool
 remove_handler (const char *file) {
-	// TODO: implement kernel logic for remove
 	validate_address(file);
 	if (file == NULL) { // file이 NULL이면 종료
 		return false;
@@ -258,7 +262,6 @@ remove_handler (const char *file) {
  */
 int
 open_handler (const char *file_name) {
-	// TODO: implement kernel logic for open
 	validate_address (file_name);
 
 	// open file from file system
@@ -280,7 +283,6 @@ open_handler (const char *file_name) {
  */
 int
 filesize_handler (int fd) {
-	// TODO: implement kernel logic for filesize
 	struct file *file = get_file_from_fd_table (fd);
 	if (file == NULL) {
 		return -1; // file descriptor not found or file is not open
@@ -295,12 +297,25 @@ filesize_handler (int fd) {
  */
 int
 read_handler (int fd, void *buffer, unsigned size) {
-	// TODO: implement kernel logic for read
-	validate_address (buffer);
+	validate_address_range (buffer, size);
+
+	unsigned int byte_counter = 0;
 
 	if (fd == 0) {
-		return input_getc();
+		// 해당 과정이 I/O device와의 interaction이기에 syscall_lock
+		lock_acquire (&syscall_lock);
+		// size만큼 buffer에 입력받는 과정을 반복
+		for (unsigned i = 0; i < size; i++) {
+			// keyboard에서 입력받은 key(1 byte->char형)를 받아와서 buffer에 저장
+			// buffer는 사용자가 입력한 key를 저장하는 공간으로 array.
+			((char *) buffer)[i] = input_getc ();
+			//1번 반복하면서 byte_counter 크기를 키워준다.
+			byte_counter++;
+		}
+		lock_release (&syscall_lock);
+		return byte_counter;
 	}
+
 	else if (fd < 0 || fd == NULL || fd == 1) {
 		exit_handler(-1);
 	}
@@ -308,10 +323,15 @@ read_handler (int fd, void *buffer, unsigned size) {
 	// find file from file descriptor table
 	struct file *file = get_file_from_fd_table (fd);
 	if (file == NULL) {
+		exit_handler(-1);
 		return -1; // file descriptor not found or file is not open
 	}
 
-	return file_read (file, buffer, size);
+	// file_read -> file_lock
+	lock_acquire (&file_lock);
+	byte_counter = file_read (file, buffer, size);
+	lock_release (&file_lock);
+	return byte_counter;
 }
 
 /**
@@ -321,18 +341,23 @@ read_handler (int fd, void *buffer, unsigned size) {
  */
 int
 write_handler (int fd, const void *buffer, unsigned size) {
-	struct lock *file_lock;
-	// TODO: implement kernel logic for write
-
-	validate_address (buffer);
+	validate_address_range (buffer, size);
 
 	// write to console
 	if (fd == 1) {
+		// console에 출력(I/O)하는 과정이기에 syscall_lock
+		lock_acquire (&syscall_lock);
 		putbuf (buffer, size);
+		lock_release (&syscall_lock);
 		return size;
 	}
+	else if (fd == 0){
+		// fd == 0은 read. 종료시킨다.
+		exit_handler(-1);
+		// int형 반환을 위해 -1 반환
+		return -1;
+	}
 
-	// TODO: write to file
 	struct file *file = get_file_from_fd_table (fd);
 
 	if (file != NULL) {
@@ -349,8 +374,6 @@ write_handler (int fd, const void *buffer, unsigned size) {
  */
 void
 seek_handler (int fd, unsigned position) {
-	// TODO: implement kernel logic for seek
-
 	struct file *file = get_file_from_fd_table (fd);
 	if (file == NULL) {
 		return; // file descriptor not found or file is not open
@@ -364,7 +387,6 @@ seek_handler (int fd, unsigned position) {
  */
 unsigned
 tell_handler (int fd) {
-	// TODO: implement kernel logic for tell
 	struct file *file = get_file_from_fd_table (fd);
 	if (file == NULL) {
 		return -1; // file descriptor not found or file is not open
@@ -378,8 +400,10 @@ tell_handler (int fd) {
  */
 void
 close_handler (int fd) {
-	// TODO: implement kernel logic for close
-	remove_file_from_fd_table (fd);
+	bool file_close_status = remove_file_from_fd_table (fd);
+	if (!file_close_status) {
+		exit_handler (-1);
+	}
 }
 
 /**
@@ -387,38 +411,56 @@ close_handler (int fd) {
  */
 struct file *
 get_file_from_fd_table (int fd) {
-	struct file **fdt = thread_current ()->fd_table;
+	struct list *fdt = thread_current ()->fd_table;
 
-	if (fd < FD_BASE || fd >= FD_LIMIT) {
-		return NULL;
+	for (struct list_elem *e = list_begin (fdt); e != list_end (fdt); e = list_next (e)) {
+		struct fd_elem *fd_elem = list_entry (e, struct fd_elem, elem);
+		if (fd_elem->fd == fd) {
+			return fd_elem->file;
+		}
 	}
 
-	return fdt[fd];
+	return NULL;
 }
 
 int
 add_file_to_fd_table (struct file *file) {
-	struct file **fdt = thread_current ()->fd_table;
+	struct thread *curr_thread = thread_current ();
+	struct list *fdt = curr_thread->fd_table;
 
-	for (int fd = FD_BASE; fd < FD_LIMIT; fd++) {
-		if (fdt[fd] == NULL) {
-			fdt[fd] = file;
-			return fd;
-		}
+	struct fd_elem *fd_elem = malloc (sizeof (struct fd_elem));
+	if (fd_elem == NULL) {
+		return -1;
 	}
 
-	return -1;
+	fd_elem->fd = curr_thread->next_fd;
+	fd_elem->file = file;
+	curr_thread->next_fd++;
+
+	list_push_back (fdt, &fd_elem->elem);
+
+	return fd_elem->fd;
 }
 
-void
+bool
 remove_file_from_fd_table (int fd) {
-	struct file **fdt = thread_current ()->fd_table;
+	struct list *fdt = thread_current ()->fd_table;
+	
+	for (struct list_elem *e = list_begin (fdt); e != list_end (fdt); e = list_next (e)) {
+		struct fd_elem *fd_elem = list_entry (e, struct fd_elem, elem);
+		
+		if (fd_elem->fd == fd) {
+			list_remove (e);
 
-	if (fd < FD_BASE || fd >= FD_LIMIT) {
-		return;
+			lock_acquire (&file_lock);
+			file_close (fd_elem->file);
+			lock_release (&file_lock);
+
+			free (fd_elem);
+			return true;
+		}
 	}
-
-	fdt[fd] = NULL;
+	return false;
 }
 
 void
