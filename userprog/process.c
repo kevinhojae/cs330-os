@@ -19,6 +19,7 @@
 #include "threads/vaddr.h"
 #include "intrinsic.h"
 #include "devices/timer.h"
+#include "lib/string.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -208,8 +209,32 @@ error:
  * Returns -1 on fail. */
 int
 process_exec (void *f_name) {
-	char *file_name = f_name;
 	bool success;
+	
+	//strtok_r 함수에서 사용하는 임시 기억 공간
+	//첫번째 사용시는 비어있는 공간으로서 저장됨
+	//두번째 이후부터는 저장된 내용을 호출될 때마다 하나씩 토큰을 꺼내와서 return
+	char *save_N_pass;
+	//직접적인 전달자
+	char *forParsing;
+
+	//f_name값을 받아와서 토큰화 시켜서 값을 저장
+	forParsing = strtok_r(f_name, " ", &save_N_pass);
+
+	//regi에 전달하기 위한 기억배열
+	char *convey_regi[64];
+	//배열의 주소 count
+	int count = 0;
+
+	//마지막 토큰 값을 받아올 때까지 반복. strtok_r은 토큰 없을 경우 NULL 반환함
+	while(forParsing != NULL){
+		//NULL 아닌 값 배열에 저장
+		convey_regi[count] = forParsing;
+		//배열 다음 주소 가리킴
+		count++;
+		//다음 토큰 받아옴
+		forParsing = strtok_r(NULL, " ", &save_N_pass);
+	}
 
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
@@ -223,12 +248,21 @@ process_exec (void *f_name) {
 	process_cleanup ();
 
 	/* And then load the binary */
-	success = load (file_name, &_if);
+	success = load (convey_regi[0], &_if);
 
 	/* If load failed, quit. */
-	palloc_free_page (file_name);
-	if (!success)
+	if (!success){
 		return -1;
+	}
+
+	/*성공시에는 받아온 값들 전달해야함.
+	TODO: 그런데.. 어떻게?*/
+
+
+
+
+	//할당했던 만큼 메모리를 free로 풀어준다.
+	palloc_free_multiple(f_name, (strlen(f_name) + 1 + (PGSIZE-1))/PGSIZE);
 
 	/* Start switched process. */
 	do_iret (&_if);
