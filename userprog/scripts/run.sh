@@ -7,7 +7,7 @@ while [ "$1" != "" ]; do
         shift
         mode=$1
         ;;
-    -t | --test)
+    -p | --test)
         shift
         test=$1
         ;;
@@ -23,7 +23,7 @@ while [ "$1" != "" ]; do
         shift
         put_files="-p ../../tests/userprog/$1:$1"
         ;;
-    --novm | --novm_folder)
+    --multioom | --novm_folder)
         shift
         novm_folder=$1
         ;;
