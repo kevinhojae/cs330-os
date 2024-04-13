@@ -488,7 +488,11 @@ validate_address_range (const void *addr, unsigned size) {
 		// define start_addr round down addr
 		const void *start_addr = pg_round_down(addr);
     for (i = 0; i < size; i += PGSIZE) {
-        pte = pml4_get_page(thread_current()->pml4, pg_round_down(start_addr + i));
+		const void *page_addr = pg_round_down(start_addr + i);
+		if(!is_user_vaddr(page_addr)) {
+			exit_handler(-1);
+		}
+        pte = pml4e_walk(thread_current()->pml4, (uint64_t) page_addr, 0);
 				if (pte == NULL || !is_kernel_vaddr (pte)) {
 						exit_handler(-1);
 				}
@@ -506,7 +510,7 @@ validate_string_range (const char *addr) {
 		// define start_addr round down addr
 		const void *start_addr = pg_round_down(addr);
 		for (int i = 0; ; i++) {
-				pte = pml4_get_page(thread_current()->pml4, pg_round_down(start_addr + i));
+				pte = pml4e_walk(thread_current()->pml4, (uint64_t) pg_round_down(start_addr + i), 0);
 				if (pte == NULL || !is_kernel_vaddr (pte)) {
 						exit_handler(-1);
 				}
