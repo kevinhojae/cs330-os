@@ -20,7 +20,6 @@ void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
 static void halt_handler (void);
-static void exit_handler (int status);
 static int fork_handler (const char *thread_name, struct intr_frame *f);
 static int exec_handler (const char *cmd_line);
 static int wait_handler (int pid);

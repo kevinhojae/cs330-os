@@ -19,6 +19,7 @@
 #include "threads/vaddr.h"
 #include "intrinsic.h"
 #include "devices/timer.h"
+#include "lib/string.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
