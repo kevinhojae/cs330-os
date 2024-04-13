@@ -14,6 +14,7 @@
 #include "threads/init.h"
 #include "userprog/process.h"
 #include "lib/user/syscall.h"
+#include "threads/palloc.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -200,8 +201,12 @@ exec_handler (const char *cmd_line) {
 	}
 
 	// make copy of cmd_line
-	// char *cmd_line_copy = malloc (strlen (cmd_line) + 1);
-	char *cmd_line_copy = palloc_get_page (0);
+	// char *cmd_line_copy 선언. palloc_get_multiple 이용
+	// strlen(cmd_line) + 1 : 문자열 + null 종료 문자 크기
+	// +(PGSIZE-1) 이후 /(PGSIZE) : 필요한 페이지 수 올림 (문자열이 페이지 경계 넘어설 때 추가 페이지 할당)
+	// char *cmd_line_copy = palloc_get_multiple(0, (strlen(cmd_line) + 1 + (PGSIZE-1))/PGSIZE);
+	char *cmd_line_copy = palloc_get_multiple(PAL_ZERO, (strlen(cmd_line) + 1 + (PGSIZE-1))/PGSIZE);
+	// char *cmd_line_copy = palloc_get_page (0);
 	if (cmd_line_copy == NULL) {
 		return TID_ERROR;
 	}
@@ -212,6 +217,9 @@ exec_handler (const char *cmd_line) {
 	if (exec_status == TID_ERROR) {
 		exit_handler (-1);
 	}
+	
+	thread_current()->exit_status = exec_status;
+	return exec_status;
 }
 
 /**
