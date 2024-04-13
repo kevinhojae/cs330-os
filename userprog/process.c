@@ -190,6 +190,8 @@ __do_fork (void *aux) {
 		list_push_back (current->fd_table, &child_fd_elem->elem);
 	}
 
+	// parent의 next_fd를 상속
+	current->next_fd = parent->next_fd;
 	// 파일 객체의 복제본을 생성하고, 새로운 파일 객체에 대한 포인터 넘겨받음
 	// 동일한 실행 파일을 공유하지만, 파일에 대한 각자의 view를 갖고 독립적으로 Read & Write 작업
 	current->exec_file = file_duplicate(parent->exec_file);
