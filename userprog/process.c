@@ -226,9 +226,11 @@ process_exec (void *f_name) {
 	success = load (file_name, &_if);
 
 	/* If load failed, quit. */
-	palloc_free_page (file_name);
+	// palloc_free_page (file_name);
+	palloc_free_multiple(file_name, (strlen(file_name) + 1 + (PGSIZE-1))/PGSIZE);
 	if (!success)
 		return -1;
+
 
 	/* Start switched process. */
 	do_iret (&_if);

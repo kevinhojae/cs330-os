@@ -204,12 +204,13 @@ exec_handler (const char *cmd_line) {
 	// char *cmd_line_copy 선언. palloc_get_multiple 이용
 	// strlen(cmd_line) + 1 : 문자열 + null 종료 문자 크기
 	// +(PGSIZE-1) 이후 /(PGSIZE) : 필요한 페이지 수 올림 (문자열이 페이지 경계 넘어설 때 추가 페이지 할당)
-	char *cmd_line_copy = palloc_get_multiple(0, (strlen(cmd_line) + 1 + (PGSIZE-1))/PGSIZE);
-
+	// char *cmd_line_copy = palloc_get_multiple(0, (strlen(cmd_line) + 1 + (PGSIZE-1))/PGSIZE);
+	char *cmd_line_copy = palloc_get_multiple(PAL_ZERO, (strlen(cmd_line) + 1 + (PGSIZE-1))/PGSIZE);
+	// char *cmd_line_copy = palloc_get_page (0);
 	if (cmd_line_copy == NULL) {
 		return TID_ERROR;
 	}
-	//strlcpy (cmd_line_copy, cmd_line, strlen (cmd_line) + 1);
+	strlcpy (cmd_line_copy, cmd_line, strlen (cmd_line) + 1);
 
 	// change current process to the executable whose name is given in cmd_line
 	tid_t exec_status = process_exec (cmd_line_copy);
