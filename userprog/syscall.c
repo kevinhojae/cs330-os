@@ -67,6 +67,7 @@ syscall_init (void) {
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
 
+	next_fd = 2; // 0 is STDIN_FILENO, 1 is STDOUT_FILENO
 	lock_init(&file_lock);
 	lock_init(&syscall_lock);
 }
@@ -371,7 +372,7 @@ write_handler (int fd, const void *buffer, unsigned size) {
 
 	struct file *file = get_file_from_fd_table (fd);
 
-	if (file != NULL ) {
+	if (file != NULL) {
 		lock_acquire (&file_lock);
 		int bytes_written = file_write(file, buffer, size);
 		lock_release (&file_lock);
@@ -445,9 +446,9 @@ add_file_to_fd_table (struct file *file) {
 	}
 
 	lock_acquire (&file_lock);
-	fd_elem->fd = curr_thread->next_fd;
+	fd_elem->fd = next_fd;
 	fd_elem->file = file;
-	curr_thread->next_fd++;
+	next_fd++;
 	lock_release (&file_lock);
 
 	list_push_back (fdt, &fd_elem->elem);

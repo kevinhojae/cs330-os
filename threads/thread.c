@@ -249,7 +249,6 @@ thread_create (const char *name, int priority,
 		return TID_ERROR;
 	}
 
-	t->next_fd = 2; // 0, 1 is reserved for stdin, stdout
 	list_init(t->fd_table);
 	#endif
 
