@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -27,6 +28,10 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+/* File descriptor for file system */
+#define FD_BASE 2
+#define FD_LIMIT 128
 
 /* A kernel thread or user process.
  *
@@ -112,6 +117,26 @@ struct thread {
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
+	
+	int exit_status;                    /* syscall - Exit status, 0 is success and -1 is fail */
+
+	struct list *fd_table;             /* File descriptor table */
+
+	struct list child_list; 		   /* List of child threads */
+	struct list_elem child_elem; 	   /* List element for child threads */
+
+	struct thread *parent; 			  /* Parent thread */
+	struct intr_frame parent_if;       /* Parent's intr_frame */
+
+	// NOTE: 반드시 struct semaphore *가 아닌 struct semaphore로 선언해야 함
+	// 이유는 struct semaphore *로 선언하면 sema_init() 이후 list_push_back() 또는 list_insert_ordered()에서
+	// sema_init()으로 초기화된 semaphore의 주소값이 아닌 이상한 주소값이 들어가게 되어 문제가 발생함
+	struct semaphore sema_wait; 	   /* Semaphore for waiting */
+	struct semaphore sema_load; 	   /* Semaphore for loading */
+	struct semaphore sema_exit; 	   /* Semaphore for exiting */
+
+	struct file *exec_file;            /* Executable file */
+
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
@@ -121,6 +146,12 @@ struct thread {
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
 	unsigned magic;                     /* Detects stack overflow. */
+};
+
+struct fd_elem {
+	int fd;
+	struct file *file;
+	struct list_elem elem;
 };
 
 /* If false (default), use round-robin scheduler.

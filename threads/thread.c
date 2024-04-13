@@ -242,6 +242,22 @@ thread_create (const char *name, int priority,
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
 
+	// Initialize fd table
+	#ifdef USERPROG
+	t->fd_table = (struct list*) malloc(sizeof(struct list));
+	if (t->fd_table == NULL) {
+		return TID_ERROR;
+	}
+
+	list_init(t->fd_table);
+	#endif
+
+
+	// fork시 thread_current()는 parent thread
+	// t는 새로 생성되는 child thread
+	t->parent = thread_current ();
+	list_push_back (&thread_current ()->child_list, &t->child_elem); // add to the child list of the parent thread
+
 	/* Add to run queue. */
 	thread_unblock (t); // NOTE: unblock the new thread to add it to the ready list.
 	thread_try_preempt ();
@@ -780,6 +796,14 @@ init_thread (struct thread *t, const char *name, int priority) {
 	//초기값 설정하기
 	t->nice = 0;
 	t->recent_cpu = 0;
+
+#ifdef USERPROG
+	// t->exit_status = 0;
+	list_init(&t->child_list); // initialize the child list
+	sema_init(&t->sema_wait, 0); // initialize the semaphore for waiting
+	sema_init(&t->sema_load, 0); // initialize the semaphore for child process fork and loads
+	sema_init(&t->sema_exit, 0); // initialize the semaphore for exit
+#endif
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

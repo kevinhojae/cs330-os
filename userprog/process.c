@@ -19,6 +19,7 @@
 #include "threads/vaddr.h"
 #include "intrinsic.h"
 #include "devices/timer.h"
+#include "lib/string.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -50,8 +51,11 @@ process_create_initd (const char *file_name) {
 	if (fn_copy == NULL)
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
-
+	
 	/* Create a new thread to execute FILE_NAME. */
+	char *save_ptr;
+	strtok_r(file_name, " ", &save_ptr); // Extract the first token from file_name to get the thread name
+
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
@@ -75,10 +79,13 @@ initd (void *f_name) {
 /* Clones the current process as `name`. Returns the new process's thread id, or
  * TID_ERROR if the thread cannot be created. */
 tid_t
-process_fork (const char *name, struct intr_frame *if_ UNUSED) {
+process_fork(const char *name, struct intr_frame *if_ UNUSED)
+{
 	/* Clone current thread to new thread.*/
-	return thread_create (name,
-			PRI_DEFAULT, __do_fork, thread_current ());
+	struct thread *cur = thread_current();
+	memcpy(&cur->parent_if, if_, sizeof(struct intr_frame));
+
+	return thread_create(name, PRI_DEFAULT, __do_fork, cur);
 }
 
 #ifndef VM
@@ -93,21 +100,32 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	bool writable;
 
 	/* 1. TODO: If the parent_page is kernel page, then return immediately. */
+	if (is_kernel_vaddr(va))
+		return true; // 여기서 true를 반환하는 이유는 pml4_for_each 함수가 false를 반환하면 순회를 중단하기 때문이다.
 
 	/* 2. Resolve VA from the parent's page map level 4. */
 	parent_page = pml4_get_page (parent->pml4, va);
+	if (parent_page == NULL)
+		return false;
 
 	/* 3. TODO: Allocate new PAL_USER page for the child and set result to
 	 *    TODO: NEWPAGE. */
+	newpage = palloc_get_page (PAL_USER);
+	if (newpage == NULL)
+		return false;
 
 	/* 4. TODO: Duplicate parent's page to the new page and
 	 *    TODO: check whether parent's page is writable or not (set WRITABLE
 	 *    TODO: according to the result). */
+	memcpy (newpage, parent_page, PGSIZE);
+	writable = is_writable (pte);
 
 	/* 5. Add new page to child's page table at address VA with WRITABLE
 	 *    permission. */
 	if (!pml4_set_page (current->pml4, va, newpage, writable)) {
 		/* 6. TODO: if fail to insert page, do error handling. */
+		palloc_free_page (newpage);
+		return false;
 	}
 	return true;
 }
@@ -123,23 +141,29 @@ __do_fork (void *aux) {
 	struct thread *parent = (struct thread *) aux;
 	struct thread *current = thread_current ();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-	struct intr_frame *parent_if;
+	struct intr_frame *parent_if = &parent->parent_if;
 	bool succ = true;
 
 	/* 1. Read the cpu context to local stack. */
+	// parent_if의 정보를 if_에 복사
+	// if_는 현재 프로세스의 intr_frame 구조체로, 현재 프로세스의 정보를 저장
 	memcpy (&if_, parent_if, sizeof (struct intr_frame));
 
 	/* 2. Duplicate PT */
+	// 현재 프로세스의 pml4를 생성, pml4란 page map level 4의 약자로 64비트 주소 공간을 512개의 페이지 테이블로 나누어 관리하는 방식
+	// 생성해주는 이유는 현재 프로세스의 pml4를 복사하기 위함
 	current->pml4 = pml4_create();
 	if (current->pml4 == NULL)
 		goto error;
 
+	// process_activate으로 현재 프로세스의 pml4를 활성화하고, thread의 kernel stack을 설정
 	process_activate (current);
 #ifdef VM
 	supplemental_page_table_init (&current->spt);
 	if (!supplemental_page_table_copy (&current->spt, &parent->spt))
 		goto error;
 #else
+	// pml4_for_each 함수를 통해 parent의 pml4를 순회하며 duplicate_pte 함수를 호출하여 현재 프로세스의 pml4에 복사
 	if (!pml4_for_each (parent->pml4, duplicate_pte, parent))
 		goto error;
 #endif
@@ -149,13 +173,39 @@ __do_fork (void *aux) {
 	 * TODO:       in include/filesys/file.h. Note that parent should not return
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
+	/* 3. Duplicate the file descriptor table. */
+	// file_duplicate 함수를 통해 parent의 file descriptor table을 복사
+	for (struct list_elem *e = list_begin (parent->fd_table); e != list_end (parent->fd_table); e = list_next (e)) {
+		struct fd_elem *parent_fd_elem = list_entry (e, struct fd_elem, elem);
+		struct file *file = file_duplicate (parent_fd_elem->file);
+		if (file == NULL) {
+			goto error;
+		}
+
+		struct fd_elem *child_fd_elem = malloc (sizeof (struct fd_elem));
+		if (child_fd_elem == NULL) {
+			goto error;
+		}
+		child_fd_elem->file = file;
+		child_fd_elem->fd = parent_fd_elem->fd;
+		list_push_back (current->fd_table, &child_fd_elem->elem);
+	}
+
+	// 파일 객체의 복제본을 생성하고, 새로운 파일 객체에 대한 포인터 넘겨받음
+	// 동일한 실행 파일을 공유하지만, 파일에 대한 각자의 view를 갖고 독립적으로 Read & Write 작업
+	current->exec_file = file_duplicate(parent->exec_file);
 
 	process_init ();
+
+	if_.R.rax = 0; // 자식 프로세스의 리턴값을 0으로 초기화
+	sema_up (&current->sema_load);
 
 	/* Finally, switch to the newly created process. */
 	if (succ)
 		do_iret (&if_);
 error:
+	current->exit_status = TID_ERROR;
+	sema_up (&current->sema_load);
 	thread_exit ();
 }
 
@@ -181,9 +231,11 @@ process_exec (void *f_name) {
 	success = load (file_name, &_if);
 
 	/* If load failed, quit. */
-	palloc_free_page (file_name);
+	// palloc_free_page (file_name);
+	palloc_free_multiple(file_name, (strlen(file_name) + 1 + (PGSIZE-1))/PGSIZE);
 	if (!success)
 		return -1;
+
 
 	/* Start switched process. */
 	do_iret (&_if);
@@ -205,11 +257,30 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	while (true) {
-		// TODO: remove and implement this function.
-		timer_sleep (TIMER_FREQ);	
+
+	struct thread *curr_thread = thread_current ();
+	int status = 0;
+
+	for (struct list_elem *e = list_begin (&curr_thread->child_list); e != list_end (&curr_thread->child_list); e = list_next (e)) {
+		struct thread *child = list_entry (e, struct thread, child_elem);
+
+		if (child->tid == child_tid) {
+			sema_down (&child->sema_wait); // wait for child to exit
+			status = child->exit_status; // 0 for success, -1 for fail
+			list_remove (&child->child_elem);
+			sema_up (&child->sema_exit); // trigger process exit
+			return status;
+		}
 	}
-    return -1;
+	return -1;
+
+	// for make test, wait for 5 seconds
+	// timer_sleep (2 * TIMER_FREQ);
+
+	// for debug, infinite loop
+	// while (1) { 
+	// 	timer_sleep (TIMER_FREQ);
+	// }
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -221,7 +292,44 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
-	process_cleanup ();
+	struct fd_elem *fd_table_row = NULL;
+	struct thread *child = NULL;
+
+	// Close all files and free the file descriptor elem
+	while (!list_empty(curr->fd_table)) {
+		fd_table_row = list_entry(list_pop_front(curr->fd_table), struct fd_elem, elem);
+		file_close(fd_table_row->file);
+		free(fd_table_row);
+	}
+
+	// Free the file descriptor table
+	free(curr->fd_table);
+
+	// For child list of the current thread, if the child's parent is the current thread, set the parent to NULL and up the sema_exit
+	while (!list_empty(&curr->child_list)) {
+		child = list_entry(list_pop_front(&curr->child_list), struct thread, elem);
+		if (child->parent == curr) {
+			child->parent = NULL;
+			sema_up(&child->sema_exit); // to trigger process exit
+		}
+	}
+	process_cleanup(); // Free the current process's resources
+
+	// To trigger process wait, up the sema_wait
+	// When process wait is triggered, it will remove the child from the child list and return the exit status
+	sema_up(&curr->sema_wait);
+
+	// Wait for the parent to trigger process exit
+	// 여기서 sema_down이 process_exit의 맨 아래에 있는 이유가 중요하다.
+	// process_exit이 실행되는 thread가 자식 thread일 경우
+	// 	- 본인의 child_list가 없기 때문에 sema_up(&child->sema_exit)가 실행되지 않는다.
+	// 	- 따라서 자식 thread는 본인의 리소스만 정리하고, sema_down(&curr->sema_exit)에서 무한 대기 상태에 빠지게 된다.
+	// process_exit이 실행되는 thread가 부모 thread일 경우
+	// 	- process_wait에서 자식 thread를 찾아서 status를 받고, child list에서 제거한 후 sema_up(&child->sema_exit)를 실행한다.
+	// 	- process sema_up(&curr->sema_wait)가 실행되어 자식 thread의 sema_down(&curr->sema_exit)가 풀리게 된다.
+	// 	- sema_down(&curr->sema_exit)은 이러한 모든 정리 작업이 끝나고, 자식 프로세스가 시스템에서 안전하게 제거될 수 있도록 하는 마지막 단계에서 호출된다.
+	// 	- 이렇게 하면 부모 프로세스가 자식 프로세스의 종료를 올바르게 대기하고, 자식 프로세스의 자원이 모두 해제된 후에 다음 단계를 진행할 수 있음. 만약 sema_down(&curr->sema_exit)을 함수의 시작 부분에 두었다면, 자식 프로세스가 자원을 제대로 정리하지 않은 상태에서 부모 프로세스가 진행되는 문제가 발생할 수 있다.
+	sema_down(&curr->sema_exit);
 }
 
 /* Free the current process's resources. */
@@ -249,6 +357,13 @@ process_cleanup (void) {
 		pml4_activate (NULL);
 		pml4_destroy (pml4);
 	}
+
+	// cleanup 과정에서 exec_file 존재시 청소.
+	if(curr->exec_file){
+		file_close(curr->exec_file);
+	}
+	// 향후의 사용/재거를 위해 exec_file은 NULL로 초기화
+	curr->exec_file = NULL;
 }
 
 /* Sets up the CPU for running user code in the nest thread.
@@ -261,6 +376,23 @@ process_activate (struct thread *next) {
 	/* Set thread's kernel stack for use in processing interrupts. */
 	tss_update (next);
 }
+
+struct thread *
+get_child_process (tid_t child_tid) {
+	struct thread *child = NULL;
+	struct list_elem *e;
+
+	for (e = list_begin (&thread_current ()->child_list); e != list_end (&thread_current ()->child_list); e = list_next (e)) {
+		struct thread *t = list_entry (e, struct thread, child_elem);
+		if (t->tid == child_tid) {
+			child = t;
+			break;
+		}
+	}
+
+	return child;
+}
+
 
 /* We load ELF binaries.  The following definitions are taken
  * from the ELF specification, [ELF1], more-or-less verbatim.  */
@@ -365,6 +497,11 @@ load (const char *file_name, struct intr_frame *if_) {
 		printf ("load: %s: open failed\n", file_name);
 		goto done;
 	}
+	// Deny Write on Executables.
+	// 본격적으로 실행하기 전에 처리할 필요가 있음
+	file_deny_write (file);
+	// 얻어온 file을 현 thread의 exec_file로 설정
+	t->exec_file = file;
 
 	/* Read and verify executable header. */
 	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -476,7 +613,11 @@ load (const char *file_name, struct intr_frame *if_) {
 
 done:
 	/* We arrive here whether the load is successful or not. */
-	file_close (file);
+	// 현 thread의 exec_file이 file이 아니라면 close
+	if(file != thread_current() -> exec_file){
+		file_close(file);
+	}
+	
 	return success;
 }
 

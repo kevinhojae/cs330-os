@@ -4,6 +4,7 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "userprog/syscall.h"
 #include "intrinsic.h"
 
 /* Number of page faults processed. */
@@ -139,6 +140,10 @@ page_fault (struct intr_frame *f) {
 	not_present = (f->error_code & PF_P) == 0;
 	write = (f->error_code & PF_W) != 0;
 	user = (f->error_code & PF_U) != 0;
+
+	if (not_present || !write || user) {
+		exit_handler (-1);
+	}
 
 #ifdef VM
 	/* For project 3 and later. */
