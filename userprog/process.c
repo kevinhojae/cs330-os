@@ -190,6 +190,10 @@ __do_fork (void *aux) {
 		list_push_back (current->fd_table, &child_fd_elem->elem);
 	}
 
+	// 파일 객체의 복제본을 생성하고, 새로운 파일 객체에 대한 포인터 넘겨받음
+	// 동일한 실행 파일을 공유하지만, 파일에 대한 각자의 view를 갖고 독립적으로 Read & Write 작업
+	current->exec_file = file_duplicate(parent->exec_file);
+
 	process_init ();
 
 	if_.R.rax = 0; // 자식 프로세스의 리턴값을 0으로 초기화
@@ -352,6 +356,13 @@ process_cleanup (void) {
 		pml4_activate (NULL);
 		pml4_destroy (pml4);
 	}
+
+	// cleanup 과정에서 exec_file 존재시 청소.
+	if(curr->exec_file){
+		file_close(curr->exec_file);
+	}
+	// 향후의 사용/재거를 위해 exec_file은 NULL로 초기화
+	curr->exec_file = NULL;
 }
 
 /* Sets up the CPU for running user code in the nest thread.
@@ -485,6 +496,11 @@ load (const char *file_name, struct intr_frame *if_) {
 		printf ("load: %s: open failed\n", file_name);
 		goto done;
 	}
+	// Deny Write on Executables.
+	// 본격적으로 실행하기 전에 처리할 필요가 있음
+	file_deny_write (file);
+	// 얻어온 file을 현 thread의 exec_file로 설정
+	t->exec_file = file;
 
 	/* Read and verify executable header. */
 	if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -596,7 +612,11 @@ load (const char *file_name, struct intr_frame *if_) {
 
 done:
 	/* We arrive here whether the load is successful or not. */
-	file_close (file);
+	// 현 thread의 exec_file이 file이 아니라면 close
+	if(file != thread_current() -> exec_file){
+		file_close(file);
+	}
+	
 	return success;
 }
 

@@ -136,6 +136,8 @@ struct thread {
 	struct semaphore sema_load; 	   /* Semaphore for loading */
 	struct semaphore sema_exit; 	   /* Semaphore for exiting */
 
+	struct file *exec_file;            /* Executable file */
+
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
