@@ -35,8 +35,9 @@ static unsigned tell_handler (int fd);
 static void close_handler (int fd);
 static struct file *get_file_from_fd_table (int fd);
 static int add_file_to_fd_table (struct file *file);
-static void validate_address (void *addr);
 static bool remove_file_from_fd_table (int fd);
+static void validate_address_range (const void *addr, unsigned size);
+static void validate_string_range (const char *addr);
 
 struct lock file_lock;
 struct lock syscall_lock;
@@ -147,7 +148,7 @@ halt_handler (void) {
 void
 exit_handler (int status) {
 	struct thread *curr_thread = thread_current (); // 현재 쓰레드 받기
-	curr_thread-> exit_status = status; // 현재 쓰레드의 exit_status에 인수로 받은status 저장
+	curr_thread->exit_status = status; // 현재 쓰레드의 exit_status에 인수로 받은 status 저장
 
 	printf("%s: exit(%d)\n", curr_thread->name, status);
 	thread_exit ();	// 현재 쓰레드 종료
@@ -163,6 +164,8 @@ exit_handler (int status) {
  */
 int
 fork_handler (const char *thread_name, struct intr_frame *f) {
+	validate_string_range (thread_name);
+
 	// fork는 메모리를 복사하는 과정이기에 syscall_lock을 사용
 	lock_acquire (&syscall_lock);
 	pid_t child_pid = process_fork (thread_name, f);
@@ -193,8 +196,7 @@ fork_handler (const char *thread_name, struct intr_frame *f) {
  */
 int
 exec_handler (const char *cmd_line) {
-	// TODO: implement kernel logic for exec
-	validate_address_range (cmd_line, strlen (cmd_line) + 1);
+	validate_string_range (cmd_line);
 
 	if (cmd_line == NULL) { // cmd_line이 NULL이면 종료
 		exit_handler (-1);
@@ -241,7 +243,7 @@ wait_handler (int pid) {
  */
 bool
 create_handler (const char *file, unsigned initial_size) {
-	validate_address (file);
+	validate_string_range (file);
 
 	if (file == NULL) { // file이 NULL이면 종료
 		exit_handler (-1);
@@ -255,7 +257,8 @@ create_handler (const char *file, unsigned initial_size) {
  */
 bool
 remove_handler (const char *file) {
-	validate_address(file);
+	validate_string_range (file);
+
 	if (file == NULL) { // file이 NULL이면 종료
 		return false;
 	}
@@ -270,7 +273,7 @@ remove_handler (const char *file) {
  */
 int
 open_handler (const char *file_name) {
-	validate_address (file_name);
+	validate_string_range (file_name);
 
 	// open file from file system
 	struct file *file = filesys_open (file_name);
@@ -368,7 +371,7 @@ write_handler (int fd, const void *buffer, unsigned size) {
 
 	struct file *file = get_file_from_fd_table (fd);
 
-	if (file != NULL) {
+	if (file != NULL ) {
 		lock_acquire (&file_lock);
 		int bytes_written = file_write(file, buffer, size);
 		lock_release (&file_lock);
@@ -472,32 +475,41 @@ remove_file_from_fd_table (int fd) {
 }
 
 void
-validate_address (void *addr) {
-	bool is_user = is_user_vaddr (addr);
-	uint64_t *pte = pml4_get_page (thread_current ()->pml4, addr);
-	
-	if (addr != NULL && is_user && pte != NULL) {
-		return;
-	}
-	exit_handler (-1);
-}
-
-void
-validate_address_range(const void *addr, unsigned size) {
+validate_address_range (const void *addr, unsigned size) {
     unsigned i;
     uint64_t *pte;
 
-    for (i = 0; i < size; i += PGSIZE) {
-        const void *current_addr = (const uint8_t *)addr + i;
-        bool is_user = is_user_vaddr(current_addr);
-        
-        // 페이지 경계를 넘어가는 경우를 고려하여, 실제로 접근하는 최종 주소를 확인
-        const void *check_addr = (i + PGSIZE < size) ? current_addr : (const uint8_t *)addr + size - 1;
+		if (addr == NULL) {
+			exit_handler(-1);
+		}
 
-        pte = pml4_get_page(thread_current()->pml4, check_addr);
-        
-        if (!is_user || pte == NULL) {
-            exit_handler(-1);
-        }
+		// define start_addr round down addr
+		const void *start_addr = pg_round_down(addr);
+    for (i = 0; i < size; i += PGSIZE) {
+        pte = pml4_get_page(thread_current()->pml4, pg_round_down(start_addr + i));
+				if (pte == NULL || !is_kernel_vaddr (pte)) {
+						exit_handler(-1);
+				}
     }
+}
+
+void
+validate_string_range (const char *addr) {
+		uint64_t *pte;
+
+		if (addr == NULL) {
+			exit_handler(-1);
+		}
+
+		// define start_addr round down addr
+		const void *start_addr = pg_round_down(addr);
+		for (int i = 0; ; i++) {
+				pte = pml4_get_page(thread_current()->pml4, pg_round_down(start_addr + i));
+				if (pte == NULL || !is_kernel_vaddr (pte)) {
+						exit_handler(-1);
+				}
+				if (*(char *)(start_addr + i) == '\0') {
+					break;
+				}
+		}
 }
