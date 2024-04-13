@@ -444,9 +444,11 @@ add_file_to_fd_table (struct file *file) {
 		return -1;
 	}
 
+	lock_acquire (&file_lock);
 	fd_elem->fd = curr_thread->next_fd;
 	fd_elem->file = file;
 	curr_thread->next_fd++;
+	lock_release (&file_lock);
 
 	list_push_back (fdt, &fd_elem->elem);
 

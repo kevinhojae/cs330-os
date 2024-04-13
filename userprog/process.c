@@ -235,7 +235,6 @@ process_exec (void *f_name) {
 	if (!success)
 		return -1;
 
-
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();
@@ -613,7 +612,7 @@ load (const char *file_name, struct intr_frame *if_) {
 done:
 	/* We arrive here whether the load is successful or not. */
 	// 현 thread의 exec_file이 file이 아니라면 close
-	if(file != thread_current() -> exec_file){
+	if(file != thread_current()->exec_file){
 		file_close(file);
 	}
 	
