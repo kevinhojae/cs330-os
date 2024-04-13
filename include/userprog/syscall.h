@@ -3,8 +3,6 @@
 
 void syscall_init (void);
 
-void halt (void);
-void exit (int status);
-int fork (const char *thread_name);
+void exit_handler (int status);
 
 #endif /* userprog/syscall.h */
