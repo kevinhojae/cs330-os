@@ -190,8 +190,6 @@ __do_fork (void *aux) {
 		list_push_back (current->fd_table, &child_fd_elem->elem);
 	}
 
-	// parent의 next_fd를 상속
-	current->next_fd = parent->next_fd;
 	// 파일 객체의 복제본을 생성하고, 새로운 파일 객체에 대한 포인터 넘겨받음
 	// 동일한 실행 파일을 공유하지만, 파일에 대한 각자의 view를 갖고 독립적으로 Read & Write 작업
 	current->exec_file = file_duplicate(parent->exec_file);
@@ -236,6 +234,7 @@ process_exec (void *f_name) {
 	palloc_free_multiple(file_name, (strlen(file_name) + 1 + (PGSIZE-1))/PGSIZE);
 	if (!success)
 		return -1;
+
 
 	/* Start switched process. */
 	do_iret (&_if);
@@ -614,7 +613,7 @@ load (const char *file_name, struct intr_frame *if_) {
 done:
 	/* We arrive here whether the load is successful or not. */
 	// 현 thread의 exec_file이 file이 아니라면 close
-	if(file != thread_current()->exec_file){
+	if(file != thread_current() -> exec_file){
 		file_close(file);
 	}
 	
