@@ -13,7 +13,14 @@ FILE="../scripts/test_commands.txt"
 TEST_NAME=$1
 
 # Grep the file for the appropriate line containing the command
-COMMAND=$(grep -o "pintos.*run $TEST_NAME" $FILE)
+COMMAND=$(grep "run $TEST_NAME" $FILE)
+
+# if debug, add "pintos --gdb --" to the command e.g. bash scripts/run.sh args-none --debug, 
+if [ "$2" == "--debug" ]; then
+    COMMAND="pintos --gdb -- $COMMAND"
+else
+    COMMAND="pintos $COMMAND"
+fi
 
 # Execute the command
 echo "Executing: $COMMAND"
