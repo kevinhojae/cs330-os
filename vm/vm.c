@@ -3,6 +3,7 @@
 #include "threads/malloc.h"
 #include "vm/vm.h"
 #include "vm/inspect.h"
+#include "lib/kernel/hash.h"
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -63,10 +64,27 @@ err:
 /* Find VA from spt and return page. On error, return NULL. */
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
-	struct page *page = NULL;
+	// 임의의 page 생성, 해당 사이즈만큼 malloc으로 메모리 할당
+	// page의 hash_elem을 사용하여 va로 접근하고자 선언
+	struct page *page = (struct page*)malloc(sizeof(struct page));
 	/* TODO: Fill this function. */
+	// hash list의 elem 사용을 위한 선언
+	struct hash_elem *e;
+	// input 받은 va의 시작 위치로 page round down 시켜서 (offset 0) 생성한 page->va에 저장 
+	page->va = pg_round_down(va);
+	// supplemental_page_table의 vm_entry_table에서 page->hash_elem을 찾아서 e에 저장
+	e = hash_find(&spt->vm_entry_table, &page->hash_elem);
+	// 용도를 다한 page 메모리 해제
+	free(page);
 
-	return page;
+	// e 받아오는 것 실패한 경우와 성공한 경우 case 분류.
+	if(e == NULL){
+		return NULL;
+	}
+	else{
+		//성공시 page 구조체로 반환.
+		return hash_entry(e, struct page, hash_elem);
+	}
 }
 
 /* Insert PAGE into spt with validation. */
