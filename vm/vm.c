@@ -4,6 +4,10 @@
 #include "vm/vm.h"
 #include "vm/inspect.h"
 #include "lib/kernel/hash.h"
+#include "threads/thread.h"
+#include "threads/palloc.h"
+#include "threads/vaddr.h"
+
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
