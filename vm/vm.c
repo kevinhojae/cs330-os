@@ -93,6 +93,7 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
 	int succ = false;
 	/* TODO: Fill this function. */
+	succ = hash_insert(&spt->vm_entry_table, &page->hash_elem);
 
 	return succ;
 }
