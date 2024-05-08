@@ -67,7 +67,7 @@ err:
 
 /* Find VA from spt and return page. On error, return NULL. */
 struct page *
-spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
+spt_find_page (struct supplemental_page_table *spt UNUSED, void *va) {
 	// 임의의 page 생성, 해당 사이즈만큼 malloc으로 메모리 할당
 	// page의 hash_elem을 사용하여 va로 접근하고자 선언
 	struct page *page = (struct page*)malloc(sizeof(struct page));
@@ -93,8 +93,8 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 
 /* Insert PAGE into spt with validation. */
 bool
-spt_insert_page (struct supplemental_page_table *spt UNUSED,
-		struct page *page UNUSED) {
+spt_insert_page (struct supplemental_page_table *spt,
+		struct page *page) {
 	int succ = false;
 	/* TODO: Fill this function. */
 	succ = hash_insert(&spt->vm_entry_table, &page->hash_elem);
@@ -199,7 +199,7 @@ vm_do_claim_page (struct page *page) {
 
 /* Initialize new supplemental page table */
 void
-supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
+supplemental_page_table_init (struct supplemental_page_table *spt) {
 	hash_init (&spt->vm_entry_table, page_hash, page_less, NULL);	
 }
 
@@ -217,14 +217,14 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 }
 
 unsigned
-page_hash (const struct hash_elem *p_, void *aux UNUSED) {
+page_hash (const struct hash_elem *p_, void *aux) {
 	const struct page *p = hash_entry (p_, struct page, hash_elem);
 	return hash_bytes (&p->va, sizeof p->va);
 }
 
 bool
 page_less (const struct hash_elem *a_, const struct hash_elem *b_,
-		void *aux UNUSED) {
+		void *aux) {
 	const struct page *a = hash_entry (a_, struct page, hash_elem);
 	const struct page *b = hash_entry (b_, struct page, hash_elem);
 
