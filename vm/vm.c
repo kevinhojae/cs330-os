@@ -100,7 +100,10 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 
 void
 spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
-	vm_dealloc_page (page);
+	
+	hash_delete (&spt->vm_entry_table, &page->hash_elem);
+	// TODO: 필요한지 잘 모르겠음. 해당 페이지를 dealloc할 필요가 있는지 test case를 통해 확인 필요. (순서도)
+	//vm_dealloc_page (page);
 	return true;
 }
 
