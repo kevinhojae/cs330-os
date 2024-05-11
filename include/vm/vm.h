@@ -44,10 +44,13 @@ struct thread;
 struct page {
 	const struct page_operations *operations;
 	void *va;              /* Address in terms of user space */
-	struct frame *frame;   /* Back reference for frame */
+	struct frame *frame;   /* Back reference for frame - 물리 공간에 대한 정보 보유*/
 
 	/* Your implementation */
 	struct hash_elem hash_elem;
+
+	bool writable;
+	
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
