@@ -130,8 +130,10 @@ spt_insert_page (struct supplemental_page_table *spt,
 	// hash insert 이용해서 page의 hash_elem을 supplemental_page_table의 vm_entry_table list에 넣어줌
 	// 성공할 경우 NULL 포인터 반환
 	succ = hash_insert(&spt->vm_entry_table, &page->hash_elem);
-
-	return succ;
+	if (succ == NULL){
+		return true;
+	}
+	return false;
 }
 
 void
