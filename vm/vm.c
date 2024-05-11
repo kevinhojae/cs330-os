@@ -195,10 +195,20 @@ vm_dealloc_page (struct page *page) {
 /* Claim the page that allocate on VA. */
 bool
 vm_claim_page (void *va UNUSED) {
-	struct page *page = NULL;
+	// 현재 thread의 spt를 확인하여(thread.h의 thread struct) 해당 va에 해당하는 page를 찾아서 page에 저장
+	struct page *page = spt_find_page (&thread_current ()->spt, va);
 	/* TODO: Fill this function */
 
-	return vm_do_claim_page (page);
+	// 성공 실패 케이스 분류
+	if(page != NULL){
+		// 성공한 경우, vm_do_claim_page 함수 호출
+		return vm_do_claim_page (page);
+	}
+	else{
+		// 실패한 경우, false 반환
+		return false;
+	}
+	
 }
 
 /* Claim the PAGE and set up the mmu. */
