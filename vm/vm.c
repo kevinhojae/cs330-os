@@ -219,7 +219,7 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	if (page == NULL) {
 		return false;
 	}
-	
+
 	// not_present인 경우, vm_do_claim_page 함수 호출하여 page claim
 	if (not_present) {
 		return vm_do_claim_page (page);
@@ -298,6 +298,18 @@ supplemental_page_table_init (struct supplemental_page_table *spt) {
 bool
 supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 		struct supplemental_page_table *src UNUSED) {
+	// hash list의 elem 사용을 위한 선언
+	struct hash_iterator i;
+
+	// src의 vm_entry_table을 순회하며 각 page를 복사하여 dst의 vm_entry_table에 넣어줌
+	hash_first (&i, &src->vm_entry_table);
+	while (hash_next (&i)) {
+		struct page *src_page = hash_entry (hash_cur (&i), struct page, hash_elem);
+		struct page *dst_page = (struct page *) malloc (sizeof (struct page));
+		*dst_page = *src_page;
+		hash_insert (&dst->vm_entry_table, &dst_page->hash_elem);
+	}
+	return true;	
 }
 
 /* Free the resource hold by the supplemental page table */
