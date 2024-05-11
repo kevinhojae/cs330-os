@@ -317,6 +317,15 @@ void
 supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
+	// hash list의 elem 사용을 위한 선언
+	struct hash_iterator i;
+
+	// spt의 vm_entry_table을 순회하며 각 page를 제거
+	hash_first (&i, &spt->vm_entry_table);
+	while (hash_next (&i)) {
+		struct page *page = hash_entry (hash_cur (&i), struct page, hash_elem);
+		destroy (page);
+	}
 }
 
 unsigned
