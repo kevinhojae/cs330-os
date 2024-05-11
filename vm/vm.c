@@ -207,7 +207,28 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
 
-	return vm_do_claim_page (page);
+	// validate the fault
+	// address가 user가 아니고 kernel인 경우, false 반환
+	if (is_kernel_vaddr (addr)) {
+		return false;
+	}
+	
+	// page를 찾아서 page에 저장
+	page = spt_find_page (spt, addr);
+	// page가 존재하지 않는 경우, false 반환
+	if (page == NULL) {
+		return false;
+	}
+	
+	// not_present인 경우, vm_do_claim_page 함수 호출하여 page claim
+	if (not_present) {
+		return vm_do_claim_page (page);
+	}
+	// write인 경우, vm_handle_wp 함수 호출하여 page write protect
+	else if (write) {
+		return vm_handle_wp (page);
+	}
+	return false;
 }
 
 /* Free the page.
