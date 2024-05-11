@@ -7,7 +7,7 @@
 static struct disk *swap_disk;
 static bool anon_swap_in (struct page *page, void *kva);
 static bool anon_swap_out (struct page *page);
-static void anon_destroy (struct page *page);
+// void anon_destroy (struct page *page);
 
 /* DO NOT MODIFY this struct */
 static const struct page_operations anon_ops = {
@@ -31,6 +31,14 @@ anon_initializer (struct page *page, enum vm_type type, void *kva) {
 	page->operations = &anon_ops;
 
 	struct anon_page *anon_page = &page->anon;
+
+	// TODO: verify the initialization of the anon_page based on the later implementation
+	anon_page->frame = NULL;
+	anon_page->page = page;
+	anon_page->writable = true;
+	anon_page->swapped = false;
+	anon_page->swap_slot = NULL;
+	anon_page->kva = kva;
 }
 
 /* Swap in the page by read contents from the swap disk. */
@@ -46,7 +54,16 @@ anon_swap_out (struct page *page) {
 }
 
 /* Destroy the anonymous page. PAGE will be freed by the caller. */
-static void
+void
 anon_destroy (struct page *page) {
 	struct anon_page *anon_page = &page->anon;
+
+	// frees the resource that was held by the anon page
+	// You do not need to explicitly free the page struct, the caller should do it.
+	anon_page->frame = NULL;
+	anon_page->page = NULL;
+	anon_page->writable = false;
+	anon_page->swapped = false;
+	anon_page->swap_slot = NULL;
+	anon_page->kva = NULL;
 }
