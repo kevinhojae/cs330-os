@@ -7,8 +7,10 @@
 #include "threads/thread.h"
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
+#include "threads/mmu.h"
 
 struct list frame_table;
+struct lock frame_table_lock;
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -24,6 +26,7 @@ vm_init (void) {
 	/* TODO: Your code goes here. */
 
 	list_init(&frame_table);
+	lock_init(&frame_table_lock);
 }
 
 /* Get the type of the page. This function is useful if you want to know the
@@ -214,6 +217,7 @@ vm_claim_page (void *va UNUSED) {
 /* Claim the PAGE and set up the mmu. */
 static bool
 vm_do_claim_page (struct page *page) {
+	// vm_get_frame()을 통해 받아옴
 	struct frame *frame = vm_get_frame ();
 	
 	/* Set links */
@@ -221,10 +225,23 @@ vm_do_claim_page (struct page *page) {
 	page->frame = frame;
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
+	// writable한 페이지인가 check
 	bool writable = page->writable;
 
+	// pml4_set_page()를 이용하여 page table entry를 설정
+	bool mmu_set_ok = pml4_set_page (thread_current ()->pml4, page->va, frame->kva, writable);
 
-	return swap_in (page, frame->kva);
+	// 성공한 경우, frame_table list에 해당 page를 추가하고 swap_in 함수 호출로 마무리
+	if(mmu_set_ok){
+		lock_acquire(&frame_table_lock);
+		list_push_back(&frame_table, &page->frame_table_elem);
+		lock_release(&frame_table_lock);
+
+		return swap_in (page, frame->kva);
+	}
+	else{
+		return false;
+	}
 }
 
 /* Initialize new supplemental page table */
