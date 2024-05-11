@@ -142,8 +142,20 @@ vm_evict_frame (void) {
  * space.*/
 static struct frame *
 vm_get_frame (void) {
-	struct frame *frame = NULL;
 	/* TODO: Fill this function. */
+	
+	// palloc_get_page()를 이용하여 single free page 할당 받음
+	void *take_page = palloc_get_page(PAL_USER);
+
+	// no available page인 경우, evict
+	if(take_page == NULL){
+		return vm_evict_frame();
+	}
+
+	// 성공적으로 page를 할당 받은 경우, 해당 page의 주소를 frame->kva에 저장
+	// frane 구조체 생성, 해당 사이즈만큼 malloc으로 메모리 할당
+	struct frame *frame = (struct frame *)malloc(sizeof(struct frame));
+	frame->kva = take_page;
 
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
