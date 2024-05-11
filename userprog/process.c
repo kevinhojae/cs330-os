@@ -841,6 +841,11 @@ setup_stack (struct intr_frame *if_) {
 	 * TODO: You should mark the page is stack. */
 	/* TODO: Your code goes here */
 
+	// map the stack on stack_bottom
+	if_->rsp = stack_bottom;
+
+	// claim the page immediately
+	success = vm_alloc_page (VM_ANON | VM_MARKER_0, stack_bottom, true);
 	return success;
 }
 #endif /* VM */
