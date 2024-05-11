@@ -22,6 +22,7 @@
 #include "lib/string.h"
 #ifdef VM
 #include "vm/vm.h"
+#include "vm/uninit.h"
 #endif
 
 static void process_cleanup (void);
@@ -806,9 +807,19 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
-		void *aux = NULL;
+		// aux에 file, ofs, read_bytes, zero_bytes, writable 정보를 담아서 lazy_load_segment 함수에 전달
+		struct lazy_load_segment_aux aux;
+		aux = (struct lazy_load_segment_aux) {
+			.file = file,
+			.ofs = ofs,
+			.upage = upage,
+			.read_bytes = page_read_bytes,
+			.zero_bytes = page_zero_bytes,
+			.writable = writable,
+		};
+
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
-					writable, lazy_load_segment, aux))
+					writable, lazy_load_segment, (void *) &aux))
 			return false;
 
 		/* Advance. */
