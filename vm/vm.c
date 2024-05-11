@@ -59,14 +59,37 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 
 	struct supplemental_page_table *spt = &thread_current ()->spt;
 
+	bool success = false;
 	/* Check wheter the upage is already occupied or not. */
 	if (spt_find_page (spt, upage) == NULL) {
 		/* TODO: Create the page, fetch the initialier according to the VM type,
 		 * TODO: and then create "uninit" page struct by calling uninit_new. You
 		 * TODO: should modify the field after calling the uninit_new. */
+		
+		// create the page
+		struct page *page = (struct page *) malloc (sizeof(struct page));
+
+		// fetch the initializer according to the VM type
+		vm_initializer *initializer = NULL;
+		switch (VM_TYPE(type)) {
+			case VM_ANON:
+				initializer = anon_initializer;
+				break;
+			case VM_FILE:
+				initializer = file_backed_initializer;
+				break;
+			default:
+				PANIC ("Invalid VM type");
+		}
+
+		uninit_new (page, upage, init, VM_TYPE (type), aux, initializer);
+		page->writable = writable;
 
 		/* TODO: Insert the page into the spt. */
+		success = spt_insert_page (spt, page);
 	}
+	return success;
+		
 err:
 	return false;
 }
