@@ -8,6 +8,7 @@
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
 
+struct list frame_table;
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -21,6 +22,8 @@ vm_init (void) {
 	register_inspect_intr ();
 	/* DO NOT MODIFY UPPER LINES. */
 	/* TODO: Your code goes here. */
+
+	list_init(&frame_table);
 }
 
 /* Get the type of the page. This function is useful if you want to know the
@@ -81,13 +84,14 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va) {
 	// 용도를 다한 page 메모리 해제
 	free(page);
 
-	// e 받아오는 것 실패한 경우와 성공한 경우 case 분류.
-	if(e == NULL){
-		return NULL;
+	// e 받아오는 것 성공/실패한 경우 case 분류.
+	if(e != NULL){
+		// 성공시 page 구조체로 반환.
+		return hash_entry(e, struct page, hash_elem);
 	}
 	else{
-		//성공시 page 구조체로 반환.
-		return hash_entry(e, struct page, hash_elem);
+		// 실패할 경우 NULL 반환
+		return NULL;
 	}
 }
 
@@ -97,6 +101,8 @@ spt_insert_page (struct supplemental_page_table *spt,
 		struct page *page) {
 	int succ = false;
 	/* TODO: Fill this function. */
+	// hash insert 이용해서 page의 hash_elem을 supplemental_page_table의 vm_entry_table list에 넣어줌
+	// 성공할 경우 NULL 포인터 반환
 	succ = hash_insert(&spt->vm_entry_table, &page->hash_elem);
 
 	return succ;
@@ -106,7 +112,7 @@ void
 spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
 	
 	hash_delete (&spt->vm_entry_table, &page->hash_elem);
-	// TODO: 필요한지 잘 모르겠음. 해당 페이지를 dealloc할 필요가 있는지 test case를 통해 확인 필요. (순서도)
+	// TODO: 아래 dealloc 함수가 필요한지 잘 모르겠음. 해당 페이지를 dealloc할 필요가 있는지 test case를 통해 확인 필요. (순서도)
 	//vm_dealloc_page (page);
 	return true;
 }
