@@ -52,10 +52,9 @@ static struct frame *vm_evict_frame (void);
  * page, do not create it directly and make it through this function or
  * `vm_alloc_page`. */
 bool
-vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
-		vm_initializer *init, void *aux) {
+vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable, vm_initializer *init, void *aux) {
 
-	ASSERT (VM_TYPE(type) != VM_UNINIT)
+	ASSERT (VM_TYPE(type) != VM_UNINIT);
 
 	struct supplemental_page_table *spt = &thread_current ()->spt;
 
@@ -68,9 +67,14 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		
 		// create the page
 		struct page *page = (struct page *) malloc (sizeof(struct page));
+		if(page==NULL){
+			// page에 메모리 할당 못해줄 경우, 바로 false return
+			return false;
+		}
 
-		// fetch the initializer according to the VM type
-		vm_initializer *initializer = NULL;
+		// initializer의 type은 uninity_new 함수의 parameter 마지막 부분에서 확인 가능, 그대로 변경했음.
+		bool (*initializer)(struct page *, enum vm_type, void *);
+
 		switch (VM_TYPE(type)) {
 			case VM_ANON:
 				initializer = anon_initializer;
@@ -80,15 +84,22 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 				break;
 			default:
 				PANIC ("Invalid VM type");
+				// 바로 false return 해줬습니다.
+				return false;
 		}
 
-		uninit_new (page, upage, init, VM_TYPE (type), aux, initializer);
+		uninit_new (page, upage, init, type, aux, initializer);
 		page->writable = writable;
+		page->page_vm_type = type;
 
 		/* TODO: Insert the page into the spt. */
+		//lock_init(&page->page_lock);
 		success = spt_insert_page (spt, page);
 		if (!success) {
 			free (page);
+		}
+		else{
+			page->owner_thread = thread_current();
 		}
 	}
 	return success;
