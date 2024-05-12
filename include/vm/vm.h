@@ -47,7 +47,7 @@ struct page {
 	struct frame *frame;   /* Back reference for frame - 물리 공간에 대한 정보 보유*/
 
 	/* Your implementation */
-	struct hash_elem hash_elem;
+	struct hash_elem spt_elem;
 
 	bool writable;
 	struct list_elem frame_table_elem;
