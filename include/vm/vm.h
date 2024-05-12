@@ -52,6 +52,11 @@ struct page {
 	bool writable;
 	struct list_elem frame_table_elem;
 
+	struct thread *owner_thread;
+
+	//struct lock page_lock;
+
+	enum vm_type page_vm_type;
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
