@@ -31,6 +31,9 @@ anon_initializer (struct page *page, enum vm_type type, void *kva) {
 	page->operations = &anon_ops;
 
 	struct anon_page *anon_page = &page->anon;
+
+	anon_page->type = type;
+	anon_page->va = kva;
 	return true;
 }
 
@@ -50,13 +53,4 @@ anon_swap_out (struct page *page) {
 void
 anon_destroy (struct page *page) {
 	struct anon_page *anon_page = &page->anon;
-
-	// frees the resource that was held by the anon page
-	// You do not need to explicitly free the page struct, the caller should do it.
-	anon_page->frame = NULL;
-	anon_page->page = NULL;
-	anon_page->writable = false;
-	anon_page->swapped = false;
-	anon_page->swap_slot = NULL;
-	anon_page->kva = NULL;
 }
