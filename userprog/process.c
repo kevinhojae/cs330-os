@@ -776,26 +776,20 @@ lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
-	
-	// aux로부터 정보를 받아옴
-	struct lazy_load_segment_aux *llsa = (struct lazy_load_segment_aux *) aux;
 
 	// find the file to read the segment from 
-	struct file *file = llsa->file;
-	off_t ofs = llsa->ofs;
-	uint32_t read_bytes = llsa->read_bytes;
-	uint32_t zero_bytes = llsa->zero_bytes;
+	struct lazy_load_info *info = (struct lazy_load_info *)aux;
 
-	// read the segment into memory
-	if (file_read_at (file, page->frame->kva, read_bytes, ofs) != (int) read_bytes) {
-		// page fault가 발생했을 때, file_read_at 함수를 통해 파일을 읽어오는데 실패하면
-		// 해당 페이지를 해제하고 false를 반환
-		palloc_free_page (page->frame->kva);
-		return false;
+	void *kpage = page->frame->kva;
+
+	file_seek(info->file, info->ofs);
+	/* Load this page. */
+	if (file_read(info->file, kpage, info->read_bytes) != (int)info->read_bytes) {
+			palloc_free_page(kpage);
+			return false;
 	}
-
-	// zero the rest of the page
-	memset (page->frame->kva + read_bytes, 0, zero_bytes);
+	memset(kpage + info->read_bytes, 0, info->zero_bytes);
+	// file_seek(info->file, info->ofs);
 	return true;
 }
 
@@ -829,19 +823,17 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
 		// aux에 file, ofs, read_bytes, zero_bytes, writable 정보를 담아서 lazy_load_segment 함수에 전달
-		struct lazy_load_segment_aux aux;
-		aux = (struct lazy_load_segment_aux) {
-			.file = file,
-			.ofs = ofs,
-			.upage = upage,
-			.read_bytes = page_read_bytes,
-			.zero_bytes = page_zero_bytes,
-			.writable = writable,
-		};
+		struct lazy_load_info *info = malloc(sizeof(struct lazy_load_info));
+		info->file = file;
+		info->ofs = ofs;
+		info->read_bytes = page_read_bytes;
+		info->zero_bytes = page_zero_bytes;
+		void *aux = info;
 
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
-					writable, lazy_load_segment, (void *) &aux))
+					writable, lazy_load_segment, aux)) {
 			return false;
+		}
 
 		/* Advance. */
 		read_bytes -= page_read_bytes;
@@ -863,14 +855,15 @@ setup_stack (struct intr_frame *if_) {
 	 * TODO: You should mark the page is stack. */
 	/* TODO: Your code goes here */
 
-	// claim the page immediately
-	if (vm_alloc_page (VM_ANON | VM_MARKER_0, stack_bottom, true)) {
-		success = vm_claim_page (stack_bottom);
-
-		if (success) {
-			if_->rsp = USER_STACK;
-		}
+	if (!vm_alloc_page (VM_ANON | VM_MARKER_0, stack_bottom, true)) {
+		return false;
 	}
+	if (!vm_claim_page(stack_bottom)) {
+		return false;
+	}
+
+	success = true;
+	if_->rsp = USER_STACK;
 	return success;
 }
 #endif /* VM */
