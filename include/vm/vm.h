@@ -124,4 +124,5 @@ enum vm_type page_get_type (struct page *page);
 
 unsigned page_hash (const struct hash_elem *p_, void *aux);
 bool page_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux);
+void page_free_fun(struct page_info *page_info);
 #endif  /* VM_VM_H */
