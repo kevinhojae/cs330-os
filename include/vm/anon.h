@@ -9,6 +9,14 @@ struct anon_page {
     void *va;
 };
 
+
+struct page_swap{
+  struct bitmap *swap_map;
+  struct lock swap_lock;
+};
+
+
+
 void vm_anon_init (void);
 bool anon_initializer (struct page *page, enum vm_type type, void *kva);
 void anon_destroy (struct page *page);
