@@ -68,11 +68,11 @@ uninit_destroy (struct page *page) {
 	 * TODO: If you don't have anything to do, just return. */
 
 	// check the vm type of the page and free the resource accordingly
-	if(uninit->type == VM_ANON){
-		// free the resource of anon page
-		anon_destroy (page);
-		free (page);
-	}
+	// if(uninit->type == VM_ANON){
+	// 	// free the resource of anon page
+	// 	anon_destroy (page);
+	// 	free (page);
+	// }
 	
 	// TODO: handle rest of the types
 	return;
