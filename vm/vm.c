@@ -8,6 +8,8 @@
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
 #include "threads/mmu.h"
+#include "userprog/process.h"
+#include <string.h>
 
 struct list frame_table;
 struct lock frame_table_lock;
@@ -355,4 +357,9 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_,
 	const struct page *b = hash_entry (b_, struct page, spt_elem);
 
 	return a->va < b->va;
+}
+
+void page_free_fun(struct page_info *page_info){
+	file_close(page_info->file);
+	free(page_info);
 }
