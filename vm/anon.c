@@ -2,12 +2,15 @@
 
 #include "vm/vm.h"
 #include "devices/disk.h"
+#include "threads/vaddr.h"
+#include "threads/malloc.h"
+#include "threads/mmu.h"
 
 /* DO NOT MODIFY BELOW LINE */
 static struct disk *swap_disk;
 static bool anon_swap_in (struct page *page, void *kva);
 static bool anon_swap_out (struct page *page);
-// void anon_destroy (struct page *page);
+static void anon_destroy (struct page *page);
 
 /* DO NOT MODIFY this struct */
 static const struct page_operations anon_ops = {
@@ -23,7 +26,10 @@ static struct page_swap anon_page_swap;
 void
 vm_anon_init (void) {
 	/* TODO: Set up the swap_disk. */
-	swap_disk = NULL;
+	swap_disk = disk_get (1, 1);
+	anon_page_swap.swap_map = bitmap_create(disk_size(swap_disk)/8);
+
+	lock_init(&anon_page_swap.swap_lock);
 }
 
 /* Initialize the file mapping */
