@@ -21,6 +21,5 @@ struct page_swap{
 
 void vm_anon_init (void);
 bool anon_initializer (struct page *page, enum vm_type type, void *kva);
-void anon_destroy (struct page *page);
 
 #endif
