@@ -5,12 +5,8 @@ struct page;
 enum vm_type;
 
 struct anon_page {
-  struct frame *frame;
-  struct page *page;
-  bool writable;
-  bool swapped;
-  size_t swap_slot;
-  void *kva;
+    enum vm_type type;
+    void *va;
 };
 
 void vm_anon_init (void);
