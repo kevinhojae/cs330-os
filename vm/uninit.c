@@ -63,17 +63,11 @@ uninit_initialize (struct page *page, void *kva) {
  * PAGE will be freed by the caller. */
 static void
 uninit_destroy (struct page *page) {
-	struct uninit_page *uninit UNUSED = &page->uninit;
+	struct uninit_page *uninit = &page->uninit;
 	/* TODO: Fill this function.
 	 * TODO: If you don't have anything to do, just return. */
 
-	// check the vm type of the page and free the resource accordingly
-	// if(uninit->type == VM_ANON){
-	// 	// free the resource of anon page
-	// 	anon_destroy (page);
-	// 	free (page);
-	// }
+	page_free_fun(uninit->aux);
 	
-	// TODO: handle rest of the types
 	return;
 }
