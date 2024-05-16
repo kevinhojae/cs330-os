@@ -17,7 +17,7 @@ COMMAND=$(grep "run $TEST_NAME" $FILE)
 
 # if debug, add "pintos --gdb --" to the command e.g. bash scripts/run.sh args-none --debug, 
 if [ "$2" == "--debug" ]; then
-    COMMAND="pintos --gdb -- $COMMAND"
+    COMMAND="pintos --gdb $COMMAND"
 else
     COMMAND="pintos $COMMAND"
 fi
