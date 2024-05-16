@@ -67,7 +67,7 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable, v
 		
 		// create the page
 		// struct page *page = palloc_get_page (0);
-		struct page *page = malloc(sizeof(struct page)); // use malloc instead of palloc_get_page
+		struct page *page = malloc(sizeof(struct page)); // palloc 대신 malloc을 써야 하는 이유는 palloc_get_page는 고정된 사이즈의 메모리만 할당해주기 때문에 page fault가 발생할 수 있음
 		if(page==NULL){
 			// page에 메모리 할당 못해줄 경우, 바로 false return
 			return false;
@@ -238,7 +238,11 @@ vm_try_handle_fault (struct intr_frame *f , void *addr ,
 		uintptr_t stack_pointer = user ? f->rsp : thread_current ()->stack_pointer;
 		// User program은 stack pointer 밑의 stack에 write할 경우 buggy함
 		// stack pointer 보다 8 byte 아래에서 page fault가 발생할 수 있음
-		if (stack_pointer - 8 <= addr && USER_STACK - 0x100000 <= stack_pointer - 8 && addr <= USER_STACK) {
+		if (
+			stack_pointer - 8 <= addr && // stack pointer보다 8 byte 아래에서 page fault 발생
+			USER_STACK - 0x100000 <= stack_pointer - 8 && // 0x100000 = 1MB, stack pointer가 user stack 범위 내에 있는지 확인
+			addr <= USER_STACK // addr이 user stack 범위 내에 있는지 확인
+		) {
 			vm_stack_growth (pg_round_down(addr));
 		}
 
