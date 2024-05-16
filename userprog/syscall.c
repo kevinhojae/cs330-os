@@ -253,7 +253,11 @@ create_handler (const char *file, unsigned initial_size) {
 	if (file == NULL) { // file이 NULL이면 종료
 		exit_handler (-1);
 	}
-	return filesys_create(file, initial_size);
+
+	lock_acquire (&file_lock);
+	bool success = filesys_create(file, initial_size);
+	lock_release (&file_lock);
+	return success;
 }
 
 /**
@@ -267,7 +271,11 @@ remove_handler (const char *file) {
 	if (file == NULL) { // file이 NULL이면 종료
 		return false;
 	}
-	return filesys_remove(file);
+
+	lock_acquire (&file_lock);
+	bool success = filesys_remove(file);
+	lock_release (&file_lock);
+	return success;
 }
 
 /**
@@ -279,18 +287,24 @@ remove_handler (const char *file) {
 int
 open_handler (const char *file_name) {
 	validate_string_range (file_name);
-
+	
 	// open file from file system
+	lock_acquire (&file_lock);
 	struct file *file = filesys_open (file_name);
 
 	// if file is not found, return -1
 	if (file == NULL) {
+		lock_release (&file_lock);
 		return -1;
 	}
 
 	// add file to file descriptor table of the current thread
 	struct thread *curr_thread = thread_current ();
 	int fd = add_file_to_fd_table (file);
+	if (fd == -1) {
+		file_close (file);
+	}
+	lock_release (&file_lock);
 	return fd;
 }
 
@@ -449,11 +463,11 @@ add_file_to_fd_table (struct file *file) {
 		return -1;
 	}
 
-	lock_acquire (&file_lock);
+	// lock_acquire (&file_lock);
 	fd_elem->fd = next_fd;
 	fd_elem->file = file;
 	next_fd++;
-	lock_release (&file_lock);
+	// lock_release (&file_lock);
 
 	list_push_back (fdt, &fd_elem->elem);
 
