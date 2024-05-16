@@ -139,8 +139,8 @@ struct thread {
 
 #endif
 #ifdef VM
-	/* Table for whole virtual memory owned by thread. */
-	struct supplemental_page_table spt;
+	struct supplemental_page_table spt; 	   /* Table for whole virtual memory owned by thread. */
+	void *stack_pointer;  /* Stack pointer */
 #endif
 
 	/* Owned by thread.c. */
