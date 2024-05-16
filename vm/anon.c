@@ -17,6 +17,8 @@ static const struct page_operations anon_ops = {
 	.type = VM_ANON,
 };
 
+static struct page_swap anon_page_swap;
+
 /* Initialize the data for anonymous pages */
 void
 vm_anon_init (void) {
