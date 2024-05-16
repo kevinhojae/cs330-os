@@ -77,6 +77,11 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
 	// printf ("system call!\n");
 
+#ifdef VM
+	// save stack pointer to thread's stack pointer
+	thread_current ()->stack_pointer = f->rsp;
+#endif
+
 	// 1. Extract system call number and arguments from f->RAX and other registers.
 	// 2. Switch based on system call number to handle different system calls.
 	// 3. For system calls involving user pointers, validate pointers before proceeding.
