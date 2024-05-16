@@ -66,7 +66,8 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable, v
 		 * TODO: should modify the field after calling the uninit_new. */
 		
 		// create the page
-		struct page *page = palloc_get_page (0);
+		// struct page *page = palloc_get_page (0);
+		struct page *page = malloc(sizeof(struct page)); // use malloc instead of palloc_get_page
 		if(page==NULL){
 			// page에 메모리 할당 못해줄 경우, 바로 false return
 			return false;
