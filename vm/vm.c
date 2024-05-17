@@ -66,7 +66,8 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable, v
 		 * TODO: should modify the field after calling the uninit_new. */
 		
 		// create the page
-		struct page *page = palloc_get_page (0);
+		// struct page *page = palloc_get_page (0);
+		struct page *page = malloc(sizeof(struct page)); // palloc 대신 malloc을 써야 하는 이유는 palloc_get_page는 고정된 사이즈의 메모리만 할당해주기 때문에 page fault가 발생할 수 있음
 		if(page==NULL){
 			// page에 메모리 할당 못해줄 경우, 바로 false return
 			return false;
@@ -200,7 +201,10 @@ vm_get_frame (void) {
 
 /* Growing the stack. */
 static void
-vm_stack_growth (void *addr UNUSED) {
+vm_stack_growth (void *addr) {
+	// Increases the stack size by allocating one or more anonymous pages so that addr is no longer a faulted address. Make sure you round down the addr to PGSIZE when handling the allocation.
+	// addr을 round down하여 page 할당
+	vm_alloc_page (VM_ANON | VM_MARKER_0, addr, true);
 }
 
 /* Handle the fault on write_protected page */
@@ -230,8 +234,19 @@ vm_try_handle_fault (struct intr_frame *f , void *addr ,
 	// page를 찾아서 page에 저장
 	// not_present인 경우, vm_do_claim_page 함수 호출하여 page claim
 	if (not_present) {
-		page = spt_find_page (spt, addr);
+		// idenfity stack growth
+		uintptr_t stack_pointer = user ? f->rsp : thread_current ()->stack_pointer;
+		// User program은 stack pointer 밑의 stack에 write할 경우 buggy함
+		// stack pointer 보다 8 byte 아래에서 page fault가 발생할 수 있음
+		if (
+			stack_pointer - 8 <= addr && // stack pointer보다 8 byte 아래에서 page fault 발생
+			USER_STACK - 0x100000 <= stack_pointer - 8 && // 0x100000 = 1MB, stack pointer가 user stack 범위 내에 있는지 확인
+			addr <= USER_STACK // addr이 user stack 범위 내에 있는지 확인
+		) {
+			vm_stack_growth (pg_round_down(addr));
+		}
 
+		page = spt_find_page (spt, addr);
 		if (page == NULL) {
 			return false;
 		}
@@ -329,8 +344,9 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 void
 hash_elem_destroy(struct hash_elem *e, void *aux UNUSED) {
     struct page *p = hash_entry(e, struct page, spt_elem);
-    destroy(p);
-    palloc_free_page(p);
+    // destroy(p);
+    // palloc_free_page(p);
+		vm_dealloc_page (p);
 }
 
 /* Free the resource hold by the supplemental page table */

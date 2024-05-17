@@ -5,7 +5,8 @@
             "includePath": [
                 "${workspaceFolder}/**"
             ],
-            "defines": ["USERPROG", "VM", "EFILESYS"],
+            // "defines": ["USERPROG"],
+            "defines": ["VM", "USERPROG"],
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "c11",
             "cppStandard": "gnu++14",

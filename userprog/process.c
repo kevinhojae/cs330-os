@@ -858,12 +858,17 @@ setup_stack (struct intr_frame *if_) {
 	if (!vm_alloc_page (VM_ANON | VM_MARKER_0, stack_bottom, true)) {
 		return false;
 	}
+	// if (!vm_alloc_page_with_initializer(VM_ANON | VM_MARKER_0, stack_bottom, true, NULL, NULL)) {
+	// 	return false;
+	// }
 	if (!vm_claim_page(stack_bottom)) {
 		return false;
 	}
 
 	success = true;
 	if_->rsp = USER_STACK;
+	// setup thread's stack pointer
+	thread_current ()->stack_pointer = if_->rsp;
 	return success;
 }
 #endif /* VM */
