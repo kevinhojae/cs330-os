@@ -32,6 +32,8 @@ static int write_handler (int fd, const void *buffer, unsigned size);
 static void seek_handler (int fd, unsigned position);
 static unsigned tell_handler (int fd);
 static void close_handler (int fd);
+static void *mmap_handler (void *addr, size_t length, int writable, int fd, off_t offset);
+static void munmap_handler (void *addr);
 static struct file *get_file_from_fd_table (int fd);
 static int add_file_to_fd_table (struct file *file);
 static bool remove_file_from_fd_table (int fd);
@@ -131,8 +133,13 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_CLOSE: 				/* Close a file. */
 			close_handler (f->R.rdi);
 			break;
+		case SYS_MMAP:
+			f->R.rax = mmap_handler ((void *) f->R.rdi, (size_t) f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
+			break;
+		case SYS_MUNMAP:
+			munmap_handler ((void *) f->R.rdi);
+			break;
 		default:
-			// thread_exit ();
 			exit_handler (-1);
 			break;
 	}
@@ -435,6 +442,68 @@ close_handler (int fd) {
 		exit_handler (-1);
 	}
 }
+
+
+void *
+mmap_handler (void *addr, size_t length, int writable, int fd, off_t offset) {
+	/**
+	 * 아래 경우 체크해서 fail 처리
+	 * A call to mmap may fail if the file opened as fd has a length of zero bytes.
+	 * It must fail if addr is not page-aligned
+	 * or if the range of pages mapped overlaps any existing set of mapped pages, including the stack or pages mapped at executable load time.
+	 * if addr is NULL, the kernel finds an appropriate address at which to create the mapping. For simplicity, you can just attempt to mmap at the given addr.
+	 * Therefore, if addr is 0, it must fail, because some Pintos code assumes virtual page 0 is not mapped.
+	 * Your mmap should also fail when length is zero.
+	 * Finally, the file descriptors representing console input and output are not mappable.
+	 */
+	if (fd <= 1) {
+		return NULL;
+	}
+
+	if (length == 0 || length >= KERN_BASE) { // KERN_BASE를 초과하면 user memory를 넘어가는 것이므로 실패
+		return NULL;
+	}
+
+	if (is_kernel_vaddr (addr)) {
+		return NULL;
+	}
+
+	// check if addr is not page-aligned
+	if (addr == NULL || addr == 0 || pg_round_down (addr) != addr) {
+		return NULL;
+	}
+
+	// check if offset is not page-aligned
+	if (pg_round_down (offset) != offset) {
+		return NULL;
+	}
+
+	// check if file opened as fd has a length of zero bytes
+	struct file *file = get_file_from_fd_table (fd);
+	if (file == NULL || file_length (file) == 0) {
+		return NULL;
+	}
+
+	// check if the range of pages mapped overlaps any existing set of mapped pages
+	for (size_t i = 0; i < length; i += PGSIZE) {
+		if (pml4e_walk (thread_current ()->pml4, (uint64_t) addr + i, 0) != NULL) {
+			return NULL;
+		}
+	}
+
+	// do mmap
+	return do_mmap (addr, length, writable, file, offset);
+}
+
+void
+munmap_handler (void *addr) {
+	if (addr == NULL || addr == 0) {
+		return;
+	}
+
+	do_munmap (addr);
+}
+
 
 /**
  * Returns the file associated with the file descriptor fd from the file descriptor table of the current thread.
