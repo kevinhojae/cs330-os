@@ -7,6 +7,7 @@ struct page;
 enum vm_type;
 
 struct file_page {
+	void *aux; // for storing lazy load info
 };
 
 void vm_file_init (void);
