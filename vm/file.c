@@ -26,6 +26,9 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	page->operations = &file_ops;
 
 	struct file_page *file_page = &page->file;
+
+	// Copy the lazy load info for file backed page
+	file_page->aux = page->uninit.aux;
 }
 
 /* Swap in the page by read contents from the file. */
