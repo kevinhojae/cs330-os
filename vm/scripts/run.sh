@@ -24,7 +24,7 @@ if [ "$MODE" == "-m" ]; then
         echo "Executing: $COMMAND"
         eval $COMMAND
     elif [ "$3" == "debug" ]; then
-        COMMAND=$(echo "$COMMAND" | sed -e 's/ < \/dev\/null.*//')
+        COMMAND=$(echo "$COMMAND" | sed -e 's/ -T [^ ]*//' -e 's/ < \/dev\/null.*//')
         COMMAND="pintos --gdb $COMMAND"
         echo "Executing: $COMMAND"
         $COMMAND
