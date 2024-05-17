@@ -89,6 +89,7 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable, v
 				return false;
 		}
 
+		// aux is lazy_load_info
 		uninit_new (page, upage, init, type, aux, initializer);
 		page->writable = writable;
 		page->page_vm_type = type;
