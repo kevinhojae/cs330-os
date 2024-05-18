@@ -101,7 +101,7 @@ anon_swap_out (struct page *page) {
 	}
 
 	// pml4에서 해당 page를 clear
-	pml4_clear_page(page->owner_thread->pml4, page->va);
+	pml4_clear_page(thread_current()->pml4, page->va);
 	// page의 (swap_out했으니) 프레임을 null로 설정.
 	page->frame = NULL;
 

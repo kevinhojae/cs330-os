@@ -67,17 +67,18 @@ file_backed_swap_in (struct page *page, void *kva) {
 static bool
 file_backed_swap_out (struct page *page) {
 	struct file_page *file_page = &page->file;
-	
-	uint64_t *current_file_pml4 = page->owner_thread->pml4;
+	struct thread *curr = thread_current();
 
-	if(page->owner_thread != NULL){
-		if(pml4_is_dirty(current_file_pml4, page->va)){
-			struct lazy_load_info *location_info = (struct lazy_load_info *) file_page->aux;
-			file_write_at(location_info->file, page->va, location_info->read_bytes, location_info->ofs);
-			pml4_set_dirty(current_file_pml4, page->va, false);
-		}
-		pml4_clear_page(current_file_pml4, page->va);
+	uint64_t *current_file_pml4 = curr->pml4;
+
+	// if(page->owner_thread != NULL){
+	if(pml4_is_dirty(current_file_pml4, page->va)){
+		struct lazy_load_info *location_info = (struct lazy_load_info *) file_page->aux;
+		file_write_at(location_info->file, page->va, location_info->read_bytes, location_info->ofs);
+		pml4_set_dirty(current_file_pml4, page->va, false);
 	}
+	pml4_clear_page(current_file_pml4, page->va);
+	// }
 	page->frame = NULL;
 	return true;
 }
