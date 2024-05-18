@@ -39,7 +39,28 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 /* Swap in the page by read contents from the file. */
 static bool
 file_backed_swap_in (struct page *page, void *kva) {
-	struct file_page *file_page UNUSED = &page->file;
+	// file을 받아옴
+	struct file_page *file_page = &page->file;
+	// file의 aux에 저장된 lazy_load_info를 받아옴
+	struct lazy_load_info *location_info = (struct lazy_load_info *) file_page->aux;
+	// 해당 info를 기반으로 read_bytes 받아옴
+	uint32_t want_bytes_size = location_info->read_bytes;
+
+	// offset을 통해 읽기 시작할 위치 탐색, 이후 찾길 바라는 사이즈만큼 읽어옴
+	uint32_t read_bytes =  (uint32_t) file_read_at(location_info->file, kva, want_bytes_size, location_info->ofs);
+
+	// 읽어온 bytes의 수가 read_bytes와 같은지 확인
+	if(read_bytes == want_bytes_size) {
+		// 남는 메모리 공간 0으로 memory setting.
+		memset(kva + want_bytes_size, 0, location_info->zero_bytes);
+		return true;
+	}
+	else{
+		// 메모리 공간 낭비를 막기 위해 할당 받은 페이지를 해제
+		palloc_free_page(kva);
+		return false;
+	}
+
 }
 
 /* Swap out the page by writeback contents to the file. */
