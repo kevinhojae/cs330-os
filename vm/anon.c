@@ -25,7 +25,13 @@ static struct page_swap anon_page_swap;
 void
 vm_anon_init (void) {
 	/* TODO: Set up the swap_disk. */
-	swap_disk = NULL;
+	// swap disk에 disk get함수를 이용하여 해당 함수에서 정의한 (1, 1) 입력을 통해 swap 전용 디스크 부여
+	swap_disk = disk_get (1, 1);
+	// swap_disk의 크기(byte return -> 한 개 page 크기는 8byte)를 이용하여 swap_map을 생성
+	anon_page_swap.swap_map = bitmap_create(disk_size(swap_disk)/8);
+
+	// swap_lock 초기화
+	lock_init(&anon_page_swap.swap_lock);
 }
 
 /* Initialize the file mapping */
