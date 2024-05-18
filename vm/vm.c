@@ -153,9 +153,24 @@ static struct frame *
 vm_get_victim (void) {
 	struct frame *victim = NULL;
 	 /* TODO: The policy for eviction is up to you. */
-	//  FIFO
-	struct list_elem *e = list_pop_front (&frame_table);
-	victim = list_entry (e, struct frame, frame_elem);
+	
+	struct list_elem *e;
+	for (e = list_begin(&frame_table); e != list_end(&frame_table); e = list_next(e)) {
+		victim = list_entry (e, struct frame, frame_elem);
+		
+		// victim의 page가 NULL인 경우, 해당 frame을 반환
+		if (victim->page == NULL) {
+			return victim;
+		}
+		
+		if (pml4_is_accessed(thread_current()->pml4, victim->page->va)) {
+			// page가 접근된 적이 있는 경우, 해당 frame의 page를 NULL로 설정하고, page의 access bit을 false로 설정
+			pml4_set_accessed(thread_current()->pml4, victim->page->va, false);
+		} else {
+			// page가 접근된 적이 없는 경우, 해당 frame을 반환
+			return victim;
+		}
+	}
 	return victim;
 }
 
@@ -163,12 +178,14 @@ vm_get_victim (void) {
  * Return NULL on error.*/
 static struct frame *
 vm_evict_frame (void) {
-	struct frame *victim UNUSED = vm_get_victim ();
+	struct frame *victim = vm_get_victim ();
 	/* TODO: swap out the victim and return the evicted frame. */
-	if (swap_out (victim->page)) {
-		return victim;
+	
+	if (!swap_out (victim->page)) {
+		return NULL;
 	}
-	return NULL;
+
+	return victim;
 }
 
 /* palloc() and get frame. If there is no available page, evict the page
@@ -180,12 +197,15 @@ vm_get_frame (void) {
 	/* TODO: Fill this function. */
 	// 성공적으로 page를 할당 받은 경우, 해당 page의 주소를 frame->kva에 저장
 	// frane 구조체 생성, 해당 사이즈만큼 malloc으로 메모리 할당
-	struct frame *frame = (struct frame *) malloc (sizeof (struct frame));
 	void *kva = palloc_get_page (PAL_USER);
 
 	if (kva == NULL) {
-		frame = vm_evict_frame ();
+		struct frame *victim_frame = vm_evict_frame ();
+		victim_frame->page = NULL;
+		return victim_frame;
 	}
+
+	struct frame *frame = (struct frame *) malloc (sizeof (struct frame));
 
 	frame->kva = kva;
 	frame->page = NULL;
@@ -301,9 +321,10 @@ vm_do_claim_page (struct page *page) {
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
 	struct thread *current_thread = thread_current ();
-	if (pml4_get_page (current_thread->pml4, pg_round_down (page->va)) || !pml4_set_page (current_thread->pml4, pg_round_down (page->va), pg_round_down (frame->kva), page->writable)) {
-		return false;
-	}
+	// if (pml4_get_page (current_thread->pml4, pg_round_down (page->va)) || !pml4_set_page (current_thread->pml4, pg_round_down (page->va), pg_round_down (frame->kva), page->writable)) {
+	// 	return false;
+	// }
+	pml4_set_page (current_thread->pml4, pg_round_down (page->va), pg_round_down (frame->kva), page->writable);
 
 	return swap_in (page, frame->kva);
 }

@@ -52,7 +52,7 @@ struct page {
 	bool writable;
 	struct list_elem frame_table_elem;
 
-	struct thread *owner_thread;
+	// struct thread *owner_thread;
 
 	//struct lock page_lock;
 
