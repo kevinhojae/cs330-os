@@ -17,6 +17,8 @@ static const struct page_operations anon_ops = {
 	.type = VM_ANON,
 };
 
+// anon page는 백업 디스크가 따로 존재하지 않으므로 위에서 swap disk 공간을 따로 정의
+// 그 공간 사용을 위한 구조체를 만들어준다. - 사용 여부, lock
 static struct page_swap anon_page_swap;
 
 /* Initialize the data for anonymous pages */
@@ -30,12 +32,17 @@ vm_anon_init (void) {
 bool
 anon_initializer (struct page *page, enum vm_type type, void *kva) {
 	/* Set up the handler */
+	//page의 operation을 anon_ops로 설정
 	page->operations = &anon_ops;
 
+	// anon_page 구조체를 새로 생성하고 입력받은 page의 anon page 정보를 입력
 	struct anon_page *anon_page = &page->anon;
 
+	// parameter로 주어진 값 그대로 배정
 	anon_page->type = type;
 	anon_page->va = kva;
+	// initializing 할 때 swap_table_index를 -1로 초기화, 나중에 swap_out할 때 이 값이 업데이트 됨.
+	anon_page->swap_table_index = -1;
 	return true;
 }
 
