@@ -62,6 +62,31 @@ anon_swap_in (struct page *page, void *kva) {
 static bool
 anon_swap_out (struct page *page) {
 	struct anon_page *anon_page = &page->anon;
+	
+	// bitmap 접근 시 lock 걸기
+	lock_acquire(&anon_page_swap.swap_lock);
+
+	// bitmap에서 정보 받아와서 swap_table_index값을 업데이트
+	// swap_out 되어 table에 저장될 위치를 받아오고, 해당 저장 위치의 bit에 사용중 표시를 한 것.
+	unsigned int index_value = bitmap_scan_and_flip(anon_page_swap.swap_map, 0, 1, false);
+	anon_page->swap_table_index = index_value;
+
+	//lock 해제
+	lock_release(&anon_page_swap.swap_lock);
+
+	// 하나의 page를 disk에 옮겨적기 위한 과정.
+	// sector 1개가 8의 크기이기에 8번 반복
+	for(int i = 0; i < 8; i++){
+		// swap_disk에서 해당 index에 8개의 sector를 write
+		disk_write(swap_disk, index_value * 8 + i, page->frame->kva + i * DISK_SECTOR_SIZE);
+	}
+
+	// pml4에서 해당 page를 clear
+	pml4_clear_page(page->owner_thread->pml4, page->va);
+	// page의 (swap_out했으니) 프레임을 null로 설정.
+	page->frame = NULL;
+
+	return true;
 }
 
 /* Destroy the anonymous page. PAGE will be freed by the caller. */
