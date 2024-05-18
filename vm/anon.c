@@ -7,7 +7,7 @@
 static struct disk *swap_disk;
 static bool anon_swap_in (struct page *page, void *kva);
 static bool anon_swap_out (struct page *page);
-// void anon_destroy (struct page *page);
+static void anon_destroy (struct page *page);
 
 /* DO NOT MODIFY this struct */
 static const struct page_operations anon_ops = {
@@ -62,6 +62,7 @@ anon_swap_in (struct page *page, void *kva) {
 
 	// 저장 위치가 올바른가 체크
 	if(bitmap_test(anon_page_swap.swap_map, index_value) == false){
+		//PANIC("bitap test failed for swap_table in anon_swap_in");
 		return false;
 	}
 
@@ -108,7 +109,8 @@ anon_swap_out (struct page *page) {
 }
 
 /* Destroy the anonymous page. PAGE will be freed by the caller. */
-void
+static void
 anon_destroy (struct page *page) {
 	struct anon_page *anon_page = &page->anon;
+	
 }
