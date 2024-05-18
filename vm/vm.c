@@ -109,24 +109,21 @@ struct page *
 spt_find_page (struct supplemental_page_table *spt, void *va) {
 	// 임의의 page 생성, 해당 사이즈만큼 malloc으로 메모리 할당
 	// page의 hash_elem을 사용하여 va로 접근하고자 선언
-	struct page *page = NULL;
+	struct page page;
 	/* TODO: Fill this function. */
 	// hash list의 elem 사용을 위한 선언
 	struct hash_elem *e;
 	// input 받은 va의 시작 위치로 page round down 시켜서 (offset 0) 생성한 page->va에 저장 
-	page = (struct page *) malloc (sizeof (struct page));
-	page->va = pg_round_down(va);
+	// page = (struct page *) malloc (sizeof (struct page));
+	page.va = pg_round_down(va);
 	// supplemental_page_table의 vm_entry_table에서 page->hash_elem을 찾아서 e에 저장
-	e = hash_find (&spt->vm_entry_table, &page->spt_elem);
+	e = hash_find (&spt->vm_entry_table, &page.spt_elem);
 
 	if (e == NULL) {
-		free (page);
 		return NULL;
 	}
 
-	free (page);
-	page = hash_entry (e, struct page, spt_elem);
-	return page;
+	return hash_entry (e, struct page, spt_elem);
 }
 
 /* Insert PAGE into spt with validation. */
@@ -137,10 +134,7 @@ spt_insert_page (struct supplemental_page_table *spt,
 	/* TODO: Fill this function. */
 	// hash insert 이용해서 page의 hash_elem을 supplemental_page_table의 vm_entry_table list에 넣어줌
 	// 성공할 경우 NULL 포인터 반환
-	struct thread *t = thread_current();
-	struct hash table = t->spt.vm_entry_table;
 	succ = hash_insert(&spt->vm_entry_table, &page->spt_elem);
-	table = thread_current()->spt.vm_entry_table;
 	if (succ == NULL){
 		return true;
 	}
@@ -206,9 +200,24 @@ vm_get_frame (void) {
 /* Growing the stack. */
 static void
 vm_stack_growth (void *addr) {
-	// Increases the stack size by allocating one or more anonymous pages so that addr is no longer a faulted address. Make sure you round down the addr to PGSIZE when handling the allocation.
-	// addr을 round down하여 page 할당
-	vm_alloc_page (VM_ANON | VM_MARKER_0, pg_round_down(addr), true);
+	void *page_addr = pg_round_down(addr);
+	bool alloc_succ, claim_succ = false;
+
+	struct page *page;
+	while((page = spt_find_page(&thread_current()->spt, page_addr)) == NULL){
+		alloc_succ = vm_alloc_page(VM_ANON | VM_MARKER_0, page_addr, true);
+		if (!alloc_succ) {
+			PANIC("allocation page of stack growth failed");
+		}
+
+		claim_succ = vm_claim_page(page_addr);
+		if (!claim_succ) {
+			PANIC("claim page of stack growth failed");
+		}
+
+		memset(page_addr, 0, PGSIZE);
+		page_addr += PGSIZE;
+	}
 }
 
 /* Handle the fault on write_protected page */
@@ -243,6 +252,7 @@ vm_try_handle_fault (struct intr_frame *f , void *addr ,
 	uintptr_t stack_bottom = pg_round_down(rsp);
 	if (addr >= rsp - 8 && addr <= USER_STACK && addr >= stack_limit) {
 		vm_stack_growth (addr);
+		return true;
 	}
 
 	page = spt_find_page (spt, addr);

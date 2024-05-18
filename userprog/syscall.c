@@ -584,9 +584,6 @@ validate_address_range (const void *addr, unsigned size, bool is_read) {
     unsigned i;
     uint64_t *pte;
 
-		// debug
-		struct hash table = thread_current ()->spt.vm_entry_table;
-
 		if (addr == NULL) {
 			exit_handler(-1);
 		}
@@ -602,21 +599,21 @@ validate_address_range (const void *addr, unsigned size, bool is_read) {
 			if(!is_user_vaddr(page_addr)) {
 				exit_handler(-1);
 			}
-				#ifndef VM
-					pte = pml4e_walk(thread_current()->pml4, (uint64_t) page_addr, 0);
-					if (pte == NULL || !is_kernel_vaddr (pte)) {
-							exit_handler(-1);
-					}
-				#else
-					struct page *page = spt_find_page (&thread_current ()->spt, page_addr);
-					if (page == NULL) {
-						exit_handler(-1);
-					}
+		#ifndef VM
+			pte = pml4e_walk(thread_current()->pml4, (uint64_t) page_addr, 0);
+			if (pte == NULL || !is_kernel_vaddr (pte)) {
+					exit_handler(-1);
+			}
+		#else
+			struct page *page = spt_find_page (&thread_current ()->spt, page_addr);
+			if (page == NULL) {
+				exit_handler(-1);
+			}
 
-					if (page->writable == false && is_read == true) {	// read_handler인 경우, buffer에 쓰기 가능해야 하므로 조건 체크
-						exit_handler(-1);
-					}
-				#endif
+			if (page->writable == false && is_read == true) {	// read_handler인 경우, buffer에 쓰기 가능해야 하므로 조건 체크
+				exit_handler(-1);
+			}
+		#endif
     }
 }
 
