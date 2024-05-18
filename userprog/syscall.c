@@ -45,7 +45,7 @@ static void validate_address_range (const void *addr, unsigned size, bool is_rea
 static void validate_string_range (const char *addr);
 
 struct lock syscall_lock;
-struct lock file_lock;
+// struct lock file_lock;
 
 /* System call.
  *

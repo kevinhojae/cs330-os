@@ -31,8 +31,6 @@ static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
 static void __do_fork (void *);
 
-static struct lock load_lock;
-
 /* General process initializer for initd and other process. */
 static void
 process_init (void) {
@@ -235,10 +233,10 @@ process_exec (void *f_name) {
 	supplemental_page_table_init(&thread_current()->spt);
 #endif
 
-	// lock_acquire (&load_lock);
+	// lock_acquire (&file_lock);
 	/* And then load the binary */
 	success = load (file_name, &_if);
-	// lock_release (&load_lock);
+	// lock_release (&file_lock);
 
 	/* If load failed, quit. */
 	// palloc_free_page (file_name);
@@ -324,6 +322,7 @@ process_exit (void) {
 		}
 	}
 	process_cleanup(); // Free the current process's resources
+	hash_destroy(&curr->spt.vm_entry_table, NULL);
 
 	// To trigger process wait, up the sema_wait
 	// When process wait is triggered, it will remove the child from the child list and return the exit status
@@ -500,6 +499,7 @@ load (const char *file_name, struct intr_frame *if_) {
 		fn_copy = NULL;
 	}
 
+	// lock_acquire (&file_lock);
 	/* Open executable file. */
 	// file = filesys_open (file_name);
 	file = filesys_open (argv[0]);
@@ -521,6 +521,7 @@ load (const char *file_name, struct intr_frame *if_) {
 			|| ehdr.e_version != 1
 			|| ehdr.e_phentsize != sizeof (struct Phdr)
 			|| ehdr.e_phnum > 1024) {
+		// lock_release (&file_lock);
 		printf ("load: %s: error loading executable\n", file_name);
 		goto done;
 	}
@@ -627,6 +628,8 @@ done:
 	if(file != thread_current() -> exec_file){
 		file_close(file);
 	}
+
+	// lock_release (&file_lock);
 	
 	return success;
 }
