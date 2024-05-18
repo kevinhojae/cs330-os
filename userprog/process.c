@@ -23,12 +23,15 @@
 #ifdef VM
 #include "vm/vm.h"
 #include "vm/uninit.h"
+#include "userprog/syscall.h"
 #endif
 
 static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
 static void __do_fork (void *);
+
+static struct lock load_lock;
 
 /* General process initializer for initd and other process. */
 static void
@@ -228,8 +231,14 @@ process_exec (void *f_name) {
 	/* We first kill the current context */
 	process_cleanup ();
 
+#ifdef VM
+	supplemental_page_table_init(&thread_current()->spt);
+#endif
+
+	// lock_acquire (&load_lock);
 	/* And then load the binary */
 	success = load (file_name, &_if);
+	// lock_release (&load_lock);
 
 	/* If load failed, quit. */
 	// palloc_free_page (file_name);

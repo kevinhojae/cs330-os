@@ -32,16 +32,20 @@ static int write_handler (int fd, const void *buffer, unsigned size);
 static void seek_handler (int fd, unsigned position);
 static unsigned tell_handler (int fd);
 static void close_handler (int fd);
+
+#ifdef VM
 static void *mmap_handler (void *addr, size_t length, int writable, int fd, off_t offset);
 static void munmap_handler (void *addr);
+#endif
+
 static struct file *get_file_from_fd_table (int fd);
 static int add_file_to_fd_table (struct file *file);
 static bool remove_file_from_fd_table (int fd);
-static void validate_address_range (const void *addr, unsigned size);
+static void validate_address_range (const void *addr, unsigned size, bool is_read);
 static void validate_string_range (const char *addr);
 
-struct lock file_lock;
 struct lock syscall_lock;
+struct lock file_lock;
 
 /* System call.
  *
@@ -133,12 +137,14 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_CLOSE: 				/* Close a file. */
 			close_handler (f->R.rdi);
 			break;
+#ifdef VM
 		case SYS_MMAP:
 			f->R.rax = mmap_handler ((void *) f->R.rdi, (size_t) f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
 			break;
 		case SYS_MUNMAP:
 			munmap_handler ((void *) f->R.rdi);
 			break;
+#endif
 		default:
 			exit_handler (-1);
 			break;
@@ -179,9 +185,9 @@ fork_handler (const char *thread_name, struct intr_frame *f) {
 	validate_string_range (thread_name);
 
 	// fork는 메모리를 복사하는 과정이기에 syscall_lock을 사용
-	lock_acquire (&syscall_lock);
+	lock_acquire (&file_lock);
 	pid_t child_pid = process_fork (thread_name, f);
-	lock_release (&syscall_lock);
+	lock_release (&file_lock);
 
 	if (child_pid == TID_ERROR) {
 		return TID_ERROR;
@@ -298,20 +304,21 @@ open_handler (const char *file_name) {
 	// open file from file system
 	lock_acquire (&file_lock);
 	struct file *file = filesys_open (file_name);
+	lock_release (&file_lock);
 
 	// if file is not found, return -1
 	if (file == NULL) {
-		lock_release (&file_lock);
 		return -1;
 	}
 
 	// add file to file descriptor table of the current thread
 	struct thread *curr_thread = thread_current ();
 	int fd = add_file_to_fd_table (file);
-	if (fd == -1) {
-		file_close (file);
-	}
-	lock_release (&file_lock);
+	// if (fd == -1) {
+	// 	lock_acquire (&file_lock);
+	// 	file_close (file);
+	// 	lock_release (&file_lock);
+	// }
 	return fd;
 }
 
@@ -334,7 +341,7 @@ filesize_handler (int fd) {
  */
 int
 read_handler (int fd, void *buffer, unsigned size) {
-	validate_address_range (buffer, size);
+	validate_address_range (buffer, size, true);
 
 	unsigned int byte_counter = 0;
 
@@ -378,7 +385,7 @@ read_handler (int fd, void *buffer, unsigned size) {
  */
 int
 write_handler (int fd, const void *buffer, unsigned size) {
-	validate_address_range (buffer, size);
+	validate_address_range (buffer, size, false);
 
 	// write to console
 	if (fd == 1) {
@@ -390,7 +397,7 @@ write_handler (int fd, const void *buffer, unsigned size) {
 	}
 	else if (fd == 0){
 		// fd == 0은 read. 종료시킨다.
-		exit_handler(-1);
+		// exit_handler(-1);
 		// int형 반환을 위해 -1 반환
 		return -1;
 	}
@@ -416,7 +423,9 @@ seek_handler (int fd, unsigned position) {
 		return; // file descriptor not found or file is not open
 	}
 
+	lock_acquire (&file_lock);
 	file_seek (file, position);
+	lock_release (&file_lock);
 }
 
 /**
@@ -429,7 +438,10 @@ tell_handler (int fd) {
 		return -1; // file descriptor not found or file is not open
 	}
 
-	return (unsigned)file_tell(file);
+	lock_acquire (&file_lock);
+	off_t pos = (unsigned)file_tell(file);
+	lock_release (&file_lock);
+	return pos;
 }
 
 /**
@@ -443,7 +455,7 @@ close_handler (int fd) {
 	}
 }
 
-
+#ifdef VM
 void *
 mmap_handler (void *addr, size_t length, int writable, int fd, off_t offset) {
 	/**
@@ -503,6 +515,7 @@ munmap_handler (void *addr) {
 
 	do_munmap (addr);
 }
+#endif
 
 
 /**
@@ -532,11 +545,11 @@ add_file_to_fd_table (struct file *file) {
 		return -1;
 	}
 
-	// lock_acquire (&file_lock);
+	lock_acquire (&file_lock);
 	fd_elem->fd = next_fd;
 	fd_elem->file = file;
 	next_fd++;
-	// lock_release (&file_lock);
+	lock_release (&file_lock);
 
 	list_push_back (fdt, &fd_elem->elem);
 
@@ -565,25 +578,45 @@ remove_file_from_fd_table (int fd) {
 }
 
 void
-validate_address_range (const void *addr, unsigned size) {
+validate_address_range (const void *addr, unsigned size, bool is_read) {
+		// is_read : write_handler인 경우 false, read_handler인 경우 true
+		// buffer에 쓰기 가능한지를 확인하기 위해 is_read를 사용
     unsigned i;
     uint64_t *pte;
+
+		// debug
+		struct hash table = thread_current ()->spt.vm_entry_table;
 
 		if (addr == NULL) {
 			exit_handler(-1);
 		}
 
+		// if (addr <= USER_STACK && addr >= thread_current()->stack_pointer) {
+		// 	exit_handler(-1);
+		// }
+
 		// define start_addr round down addr
 		const void *start_addr = pg_round_down(addr);
     for (i = 0; i < size; i += PGSIZE) {
-		const void *page_addr = pg_round_down(start_addr + i);
-		if(!is_user_vaddr(page_addr)) {
-			exit_handler(-1);
-		}
-        pte = pml4e_walk(thread_current()->pml4, (uint64_t) page_addr, 0);
-				if (pte == NULL || !is_kernel_vaddr (pte)) {
+			const void *page_addr = pg_round_down(start_addr + i);
+			if(!is_user_vaddr(page_addr)) {
+				exit_handler(-1);
+			}
+				#ifndef VM
+					pte = pml4e_walk(thread_current()->pml4, (uint64_t) page_addr, 0);
+					if (pte == NULL || !is_kernel_vaddr (pte)) {
+							exit_handler(-1);
+					}
+				#else
+					struct page *page = spt_find_page (&thread_current ()->spt, page_addr);
+					if (page == NULL) {
 						exit_handler(-1);
-				}
+					}
+
+					if (page->writable == false && is_read == true) {	// read_handler인 경우, buffer에 쓰기 가능해야 하므로 조건 체크
+						exit_handler(-1);
+					}
+				#endif
     }
 }
 
