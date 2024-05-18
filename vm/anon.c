@@ -56,6 +56,24 @@ anon_initializer (struct page *page, enum vm_type type, void *kva) {
 static bool
 anon_swap_in (struct page *page, void *kva) {
 	struct anon_page *anon_page = &page->anon;
+	
+	// 현재 swap_table_index 값 받아오기.
+	unsigned int index_value = anon_page->swap_table_index;
+
+	// 저장 위치가 올바른가 체크
+	if(bitmap_test(anon_page_swap.swap_map, index_value) == false){
+		return false;
+	}
+
+    // swap disk에 있는 페이지를 1 Byte씩 read
+    for(int i = 0; i < 8; i++){
+        disk_read(swap_disk, index_value * 8 + i, kva + i * DISK_SECTOR_SIZE);
+	}	
+
+	// 해당 swap table에 비트맵 설정하기
+	bitmap_set_multiple(anon_page_swap.swap_map, index_value, 1, false);
+
+	return true;
 }
 
 /* Swap out the page by writing contents to the swap disk. */
