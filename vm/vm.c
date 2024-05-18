@@ -109,24 +109,21 @@ struct page *
 spt_find_page (struct supplemental_page_table *spt, void *va) {
 	// 임의의 page 생성, 해당 사이즈만큼 malloc으로 메모리 할당
 	// page의 hash_elem을 사용하여 va로 접근하고자 선언
-	struct page *page = NULL;
+	struct page page;
 	/* TODO: Fill this function. */
 	// hash list의 elem 사용을 위한 선언
 	struct hash_elem *e;
 	// input 받은 va의 시작 위치로 page round down 시켜서 (offset 0) 생성한 page->va에 저장 
-	page = (struct page *) palloc_get_page (0);
-	page->va = pg_round_down(va);
+	// page = (struct page *) malloc (sizeof (struct page));
+	page.va = pg_round_down(va);
 	// supplemental_page_table의 vm_entry_table에서 page->hash_elem을 찾아서 e에 저장
-	e = hash_find (&spt->vm_entry_table, &page->spt_elem);
+	e = hash_find (&spt->vm_entry_table, &page.spt_elem);
 
 	if (e == NULL) {
-		palloc_free_page (page);
 		return NULL;
 	}
 
-	palloc_free_page (page);
-	page = hash_entry (e, struct page, spt_elem);
-	return page;
+	return hash_entry (e, struct page, spt_elem);
 }
 
 /* Insert PAGE into spt with validation. */
@@ -183,7 +180,7 @@ vm_get_frame (void) {
 	/* TODO: Fill this function. */
 	// 성공적으로 page를 할당 받은 경우, 해당 page의 주소를 frame->kva에 저장
 	// frane 구조체 생성, 해당 사이즈만큼 malloc으로 메모리 할당
-	struct frame *frame = palloc_get_page (0);
+	struct frame *frame = (struct frame *) malloc (sizeof (struct frame));
 	void *kva = palloc_get_page (PAL_USER);
 
 	if (kva == NULL) {
@@ -203,9 +200,24 @@ vm_get_frame (void) {
 /* Growing the stack. */
 static void
 vm_stack_growth (void *addr) {
-	// Increases the stack size by allocating one or more anonymous pages so that addr is no longer a faulted address. Make sure you round down the addr to PGSIZE when handling the allocation.
-	// addr을 round down하여 page 할당
-	vm_alloc_page (VM_ANON | VM_MARKER_0, addr, true);
+	void *page_addr = pg_round_down(addr);
+	bool alloc_succ, claim_succ = false;
+
+	struct page *page;
+	while((page = spt_find_page(&thread_current()->spt, page_addr)) == NULL){
+		alloc_succ = vm_alloc_page(VM_ANON | VM_MARKER_0, page_addr, true);
+		if (!alloc_succ) {
+			PANIC("allocation page of stack growth failed");
+		}
+
+		claim_succ = vm_claim_page(page_addr);
+		if (!claim_succ) {
+			PANIC("claim page of stack growth failed");
+		}
+
+		memset(page_addr, 0, PGSIZE);
+		page_addr += PGSIZE;
+	}
 }
 
 /* Handle the fault on write_protected page */
@@ -233,30 +245,26 @@ vm_try_handle_fault (struct intr_frame *f , void *addr ,
 	}
 	
 	// page를 찾아서 page에 저장
-	// not_present인 경우, vm_do_claim_page 함수 호출하여 page claim
-	if (not_present) {
-		// idenfity stack growth
-		uintptr_t stack_pointer = user ? f->rsp : thread_current ()->stack_pointer;
-		// User program은 stack pointer 밑의 stack에 write할 경우 buggy함
-		// stack pointer 보다 8 byte 아래에서 page fault가 발생할 수 있음
-		if (
-			stack_pointer - 8 <= addr && // stack pointer보다 8 byte 아래에서 page fault 발생
-			USER_STACK - 0x100000 <= stack_pointer - 8 && // 0x100000 = 1MB, stack pointer가 user stack 범위 내에 있는지 확인
-			addr <= USER_STACK // addr이 user stack 범위 내에 있는지 확인
-		) {
-			vm_stack_growth (pg_round_down(addr));
-		}
-
-		page = spt_find_page (spt, addr);
-		if (page == NULL) {
-			return false;
-		}
-
-		return vm_do_claim_page (page);
+	// User program은 stack pointer 밑의 stack에 write할 경우 buggy함
+	// stack pointer 보다 8 byte 아래에서 page fault가 발생할 수 있음
+	uintptr_t stack_limit = USER_STACK - (1 << 20);
+	uintptr_t rsp = user ? f->rsp : thread_current()->stack_pointer;
+	uintptr_t stack_bottom = pg_round_down(rsp);
+	if (addr >= rsp - 8 && addr <= USER_STACK && addr >= stack_limit) {
+		vm_stack_growth (addr);
+		return true;
 	}
-	
-	// TODO: Implement the rest of vm handling code here.
-	return false;
+
+	page = spt_find_page (spt, addr);
+	if (page == NULL) {
+		return false;
+	}
+
+	if (!page->writable && write) {
+		return false;
+	}
+
+	return vm_do_claim_page (page);
 }
 
 /* Free the page.
