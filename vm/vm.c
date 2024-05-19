@@ -95,7 +95,6 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable, v
 		page->page_vm_type = type;
 
 		/* TODO: Insert the page into the spt. */
-		//lock_init(&page->page_lock);
 		return spt_insert_page (spt, page);
 	}
 	return success;
@@ -321,9 +320,7 @@ vm_do_claim_page (struct page *page) {
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
 	struct thread *current_thread = thread_current ();
-	// if (pml4_get_page (current_thread->pml4, pg_round_down (page->va)) || !pml4_set_page (current_thread->pml4, pg_round_down (page->va), pg_round_down (frame->kva), page->writable)) {
-	// 	return false;
-	// }
+	
 	pml4_set_page (current_thread->pml4, pg_round_down (page->va), pg_round_down (frame->kva), page->writable);
 
 	return swap_in (page, frame->kva);
