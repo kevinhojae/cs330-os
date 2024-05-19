@@ -62,7 +62,6 @@ anon_swap_in (struct page *page, void *kva) {
 
 	// 저장 위치가 올바른가 체크
 	if(bitmap_test(anon_page_swap.swap_map, index_value) == false){
-		//PANIC("bitap test failed for swap_table in anon_swap_in");
 		return false;
 	}
 
